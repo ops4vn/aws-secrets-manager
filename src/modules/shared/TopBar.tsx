@@ -30,10 +30,22 @@ export function TopBar({
         />
 
         {isCreatingNew && (
-          <span className="badge badge-success badge-outline">CREATE MODE</span>
+          <div
+            className="btn btn-success btn-xs normal-case ml-2"
+            title="Create mode"
+          >
+            <span className="w-2 h-2 rounded-full bg-white/80 mr-2"></span>
+            Create mode
+          </div>
         )}
         {!isCreatingNew && isEditing && (
-          <span className="badge badge-error badge-outline">EDIT MODE</span>
+          <div
+            className="btn btn-error btn-xs normal-case ml-2"
+            title="Edit mode"
+          >
+            <span className="w-2 h-2 rounded-full bg-white/80 mr-2"></span>
+            Edit mode
+          </div>
         )}
       </div>
 

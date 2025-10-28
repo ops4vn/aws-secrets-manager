@@ -42,17 +42,19 @@ export function SidebarProfiles({
         <Star className="h-4 w-4 mr-1" /> Set as default
       </button>
 
+      <button
+        className="btn btn-sm mt-1 bg-[#FF9900] hover:bg-[#e58a00] text-white border-none"
+        onClick={onCheckSSO}
+      >
+        <ShieldCheck className="h-4 w-4 mr-1" /> Check SSO
+      </button>
+
       <div className="divider my-1"></div>
       <button className="btn btn-outline btn-sm" onClick={onListSecrets}>
         <List className="h-4 w-4 mr-1" /> List Secrets
       </button>
       <button className="btn btn-outline btn-sm" onClick={onForceReload}>
         <RefreshCcw className="h-4 w-4 mr-1" /> Force Reload
-      </button>
-
-      <div className="divider my-1"></div>
-      <button className="btn btn-secondary btn-sm" onClick={onCheckSSO}>
-        <ShieldCheck className="h-4 w-4 mr-1" /> Check SSO
       </button>
     </div>
   );

@@ -1,7 +1,25 @@
 import { Outlet } from "react-router-dom";
 import { Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
+import { api } from "../services/tauriApi";
 
 export function MainLayout() {
+  const [theme, setTheme] = useState<string | null>(null);
+  useEffect(() => {
+    (async () => {
+      const t = await api.loadTheme();
+      if (t) {
+        document.documentElement.setAttribute("data-theme", t);
+        setTheme(t);
+      }
+    })();
+  }, []);
+  const toggleTheme = async (checked: boolean) => {
+    const next = checked ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", next);
+    setTheme(next);
+    await api.saveTheme(next);
+  };
   return (
     <div className="flex flex-col min-h-screen bg-base-200 text-base-content">
       <div className="navbar bg-base-100 border-b border-base-300 px-4">
@@ -10,7 +28,13 @@ export function MainLayout() {
         </div>
         <div className="flex-none gap-2">
           <label className="swap swap-rotate">
-            <input type="checkbox" className="theme-controller" value="dark" />
+            <input
+              type="checkbox"
+              className="theme-controller"
+              value="dark"
+              checked={theme === "dark"}
+              onChange={(e) => toggleTheme(e.target.checked)}
+            />
             <Sun className="swap-off h-6 w-6" />
             <Moon className="swap-on h-6 w-6" />
           </label>

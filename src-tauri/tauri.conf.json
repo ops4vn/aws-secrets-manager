@@ -15,7 +15,8 @@
         "title": "",
         "width": 1200,
         "height": 900,
-        "titleBarStyle": "Overlay"
+        "titleBarStyle": "Overlay",
+        "maximized": true
       }
     ],
     "security": {
