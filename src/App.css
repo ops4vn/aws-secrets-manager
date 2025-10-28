@@ -4,7 +4,7 @@
 
 @plugin "daisyui/theme" {
   name: "light";
-  default: true;
+  default: false;
   prefersdark: false;
   color-scheme: "light";
   --color-base-100: oklch(100% 0 0);
@@ -30,9 +30,9 @@
   --radius-selector: 0.5rem;
   --radius-field: 0.25rem;
   --radius-box: 0.5rem;
-  --size-selector: 0.1875rem;
-  --size-field: 0.1875rem;
-  --border: 0.5px;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
   --depth: 1;
   --noise: 0;
 }
@@ -40,7 +40,7 @@
 @plugin "daisyui/theme" {
   name: "dark";
   default: false;
-  prefersdark: true;
+  prefersdark: false;
   color-scheme: "dark";
   --color-base-100: oklch(28.822% 0.022 277.508);
   --color-base-200: oklch(26.805% 0.02 277.508);
@@ -62,12 +62,12 @@
   --color-warning-content: oklch(19.106% 0.026 112.757);
   --color-error: oklch(68.22% 0.206 24.43);
   --color-error-content: oklch(13.644% 0.041 24.43);
-  --radius-selector: 0.5rem;
+  --radius-selector: 1rem;
   --radius-field: 0.5rem;
   --radius-box: 1rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
-  --depth: 1;
-  --noise: 1;
+  --depth: 0;
+  --noise: 0;
 }
