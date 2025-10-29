@@ -24,7 +24,15 @@ export function useSsoStatus(deps: CheckDeps) {
       setStatus?.("Checking SSO...");
       pushLog?.("Checking SSO...");
 
-      const ok = await deps.checkSso(profile);
+      let ok = false;
+      try {
+        ok = await deps.checkSso(profile);
+      } catch (err: any) {
+        const msg = typeof err === "string" ? err : err?.message ?? "SSO check failed";
+        setStatus?.(msg);
+        pushLog?.(msg);
+        ok = false;
+      }
       if (ok) {
         setSsoValid(true);
         setSsoChecking(false);
@@ -33,23 +41,12 @@ export function useSsoStatus(deps: CheckDeps) {
         return true;
       }
 
-      await deps.triggerSsoLogin(profile);
-      setStatus?.("Opened SSO login in browser...");
-      pushLog?.("Opened SSO login in browser...");
-
-      let valid = false;
-      for (let i = 0; i < 20; i++) {
-        await new Promise((r) => setTimeout(r, 3000));
-        if (await deps.checkSso(profile)) {
-          valid = true;
-          break;
-        }
-      }
-      setSsoValid(valid);
+      // Không tự động mở trình duyệt. Trả về false để UI quyết định khi nào gọi triggerSsoLogin.
+      setSsoValid(false);
       setSsoChecking(false);
-      setStatus?.(valid ? "SSO valid" : "SSO still invalid after waiting");
-      pushLog?.(valid ? "SSO valid" : "SSO still invalid after waiting");
-      return valid;
+      setStatus?.("SSO invalid");
+      pushLog?.("SSO invalid");
+      return false;
     },
     [deps]
   );

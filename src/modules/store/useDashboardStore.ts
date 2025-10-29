@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { listen } from "@tauri-apps/api/event";
 import { api, SecretContent } from "../services/tauriApi";
 
 type State = {
@@ -10,7 +11,6 @@ type State = {
   // ui
   showSecretsTree: boolean;
   searchQuery: string;
-  status: string;
 
   // logs
   logs: string[];
@@ -27,6 +27,7 @@ type State = {
   // sso
   ssoValid: boolean | null;
   ssoChecking: boolean;
+  _eventsBound: boolean;
 };
 
 type Actions = {
@@ -34,7 +35,6 @@ type Actions = {
   setSelectedProfile: (p: string | null) => void;
   setSearchQuery: (q: string) => void;
   setShowSecretsTree: (v: boolean) => void;
-  setStatus: (s: string) => void;
 
   // logs
   pushLog: (msg: string) => void;
@@ -52,6 +52,7 @@ type Actions = {
 
   // sso
   checkSsoFlow: () => Promise<boolean>;
+  triggerSsoLogin: () => Promise<void>;
 
   // secrets
   fetchSecretById: (name: string) => Promise<void>;
@@ -70,7 +71,6 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
 
   showSecretsTree: false,
   searchQuery: "",
-  status: "",
 
   logs: [],
   autoScrollLogs: true,
@@ -84,8 +84,8 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
 
   ssoValid: null,
   ssoChecking: false,
+  _eventsBound: false,
 
-  setStatus: (s) => set({ status: s }),
   pushLog: (msg) =>
     set((st) => {
       const ts = new Date().toLocaleTimeString();
@@ -115,12 +115,32 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
       if (df) {
         const cached = await api.loadCachedSecretNames(df);
         if (cached && cached.length > 0) {
-          set({ allNames: cached, showSecretsTree: true, status: `Loaded ${cached.length} cached secrets` });
+          set({ allNames: cached, showSecretsTree: true });
           get().pushSuccess(`Loaded ${cached.length} cached secrets`);
         }
       }
+
+      // Bind event listeners once
+      const st = get();
+      if (!st._eventsBound) {
+        void listen<string>("sso_login_ok", async (ev) => {
+          set({ ssoValid: true, ssoChecking: false });
+          get().pushSuccess(`SSO login ok${ev.payload ? ` for ${ev.payload}` : ""}`);
+        });
+        void listen("sso_login_timeout", () => {
+          set({ ssoValid: false, ssoChecking: false });
+          get().pushWarn("SSO login timeout");
+        });
+        set({ _eventsBound: true });
+      }
+
+      // Initial SSO check on app start
+      const st2 = get();
+      if (st2.selectedProfile ?? st2.defaultProfile) {
+        void st2.checkSsoFlow();
+      }
     } catch (e) {
-      set({ status: `Init error: ${String(e)}` });
+      get().pushError(`Init error: ${String(e)}`);
     }
   },
 
@@ -128,7 +148,6 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
     const st = get();
     await api.saveDefaultProfile(st.selectedProfile ?? "default");
     set({ defaultProfile: st.selectedProfile });
-    set({ status: "Saved default profile" });
     st.pushSuccess("Saved default profile");
   },
 
@@ -137,26 +156,23 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
     const profile = st.selectedProfile ?? st.defaultProfile;
     set({ showSecretsTree: true });
     if (!profile) {
-      set({ status: "No profile selected" });
       st.pushWarn("No profile selected");
       return;
     }
     if (!force) {
-      set({ status: "Listing secrets..." });
       st.pushInfo("Listing secrets...");
       const cached = await api.loadCachedSecretNames(profile);
       if (cached && cached.length) {
-        set({ allNames: cached, status: `Loaded ${cached.length} cached secrets` });
+        set({ allNames: cached });
         st.pushSuccess(`Loaded ${cached.length} cached secrets`);
         return;
       }
     } else {
-      set({ status: "Reloading secrets from AWS..." });
       st.pushWarn("Force reloading secrets...");
     }
     const names = await api.listSecrets(profile);
     await api.saveCachedSecretNames(profile, names);
-    set({ allNames: names, status: `Loaded ${names.length} secrets` });
+    set({ allNames: names });
     st.pushSuccess(`Loaded ${names.length} secrets`);
   },
 
@@ -164,38 +180,48 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
     const st = get();
     const profile = st.selectedProfile ?? st.defaultProfile;
     if (!profile) {
-      set({ status: "No profile selected" });
       st.pushWarn("No profile selected");
       return false;
     }
-    set({ ssoChecking: true, status: "Checking SSO..." });
+    set({ ssoChecking: true });
     st.pushInfo("Checking SSO...");
-    const ok = await api.checkSso(profile);
-    if (ok) {
-      set({ ssoValid: true, ssoChecking: false, status: "SSO valid" });
-      st.pushSuccess("SSO valid");
-      return true;
-    }
-    await api.triggerSsoLogin(profile);
-    set({ status: "Opened SSO login in browser..." });
-    st.pushInfo("Opened SSO login in browser...");
-    let valid = false;
-    for (let i = 0; i < 20; i++) {
-      await new Promise((r) => setTimeout(r, 3000));
-      if (await api.checkSso(profile)) {
-        valid = true;
-        break;
+    try {
+      const ok = await api.checkSso(profile);
+      if (ok) {
+        set({ ssoValid: true, ssoChecking: false });
+        st.pushSuccess("SSO valid");
+        return true;
       }
+      // Theo backend mới, checkSso nếu fail sẽ throw, nên nhánh này hiếm gặp
+      set({ ssoValid: false, ssoChecking: false });
+      st.pushWarn("SSO invalid");
+      return false;
+    } catch (e) {
+      const msg = typeof e === 'string' ? e : (e as any)?.message ?? 'SSO check failed';
+      set({ ssoValid: false, ssoChecking: false });
+      st.pushError(String(msg));
+      return false;
     }
-    set({ ssoValid: valid, ssoChecking: false, status: valid ? "SSO valid" : "SSO still invalid after waiting" });
-    if (valid) st.pushSuccess("SSO valid"); else st.pushWarn("SSO still invalid after waiting");
-    return valid;
+  },
+
+  triggerSsoLogin: async () => {
+    const st = get();
+    const profile = st.selectedProfile ?? st.defaultProfile;
+    if (!profile) {
+      st.pushWarn("No profile selected");
+      return;
+    }
+    try {
+      await api.triggerSsoLogin(profile);
+      st.pushInfo("Opened SSO login in browser...");
+    } catch (e) {
+      st.pushError(`Cannot open SSO login: ${String(e)}`);
+    }
   },
 
   fetchSecretById: async (name: string) => {
     const st = get();
     const profile = st.selectedProfile ?? st.defaultProfile;
-    set({ status: `Fetching secret: ${name}` });
     st.pushInfo(`Fetching secret: ${name}`);
     try {
       const res: SecretContent = await api.fetchSecret(profile ?? null, name);
@@ -211,40 +237,37 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
       } else {
         set({ editorContent: "", isBinary: false });
       }
-      set({ isEditing: false, isCreatingNew: false, status: res.string ? "Fetched string secret" : res.binary_base64 ? "Fetched binary secret (base64)" : "Empty secret" });
+      set({ isEditing: false, isCreatingNew: false });
       st.pushSuccess("Fetched secret");
     } catch (e) {
-      set({ editorContent: "", isBinary: false, isEditing: false, isCreatingNew: false, status: `Error: ${String(e)}` });
+      set({ editorContent: "", isBinary: false, isEditing: false, isCreatingNew: false });
       st.pushError(`Fetch error: ${String(e)}`);
     }
   },
 
   startEdit: () => {
-    set({ isEditing: true, isCreatingNew: false, status: "Edit mode enabled" });
+    set({ isEditing: true, isCreatingNew: false });
     get().pushInfo("Switched to edit mode");
   },
   startCreateNew: () => {
-    set({ isCreatingNew: true, isEditing: true, editorContent: "", secretId: "", status: "Create new secret mode" });
+    set({ isCreatingNew: true, isEditing: true, editorContent: "", secretId: "" });
     get().pushInfo("Switched to create new secret mode");
   },
   save: async () => {
     const st = get();
     const profile = st.selectedProfile ?? st.defaultProfile;
-    set({ status: st.isCreatingNew ? "Creating secret..." : "Updating secret..." });
     st.pushInfo((st.isCreatingNew ? "Creating" : "Updating") + ` secret: ${st.secretId}`);
     if (st.isCreatingNew) {
       await api.createSecret(profile, st.secretId, st.editorContent);
-      set({ status: "Created secret" });
       st.pushSuccess("Created secret");
     } else {
       await api.updateSecret(profile, st.secretId, st.editorContent);
-      set({ status: "Updated secret" });
       st.pushSuccess("Updated secret");
     }
     set({ isEditing: false, isCreatingNew: false });
   },
   cancelEdit: () => {
-    set({ isEditing: false, isCreatingNew: false, status: "Edit cancelled" });
+    set({ isEditing: false, isCreatingNew: false });
     get().pushInfo("Edit mode cancelled");
   },
 }));

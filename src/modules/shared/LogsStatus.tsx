@@ -5,13 +5,11 @@ import { useDashboardStore } from "../store/useDashboardStore";
 export function LogsStatus() {
   const {
     logs,
-    status,
     clearLogs,
     autoScrollLogs,
     setAutoScrollLogs,
     isCreatingNew,
     secretId,
-    setStatus,
     pushLog,
   } = useDashboardStore();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -26,7 +24,6 @@ export function LogsStatus() {
   }, [logs, autoScrollLogs]);
   const canDelete = !isCreatingNew && !!secretId;
   const handleDelete = () => {
-    setStatus("Delete not implemented");
     pushLog("[WARN] Delete clicked (not implemented)");
   };
   const getLevel = (
@@ -77,9 +74,9 @@ export function LogsStatus() {
   const copyFiltered = async () => {
     try {
       await navigator.clipboard.writeText(filteredLogs.join("\n"));
-      setStatus("Copied filtered logs to clipboard");
+      pushLog("[SUCCESS] Copied filtered logs to clipboard");
     } catch (e) {
-      setStatus("Copy failed");
+      pushLog("[ERROR] Copy failed");
     }
   };
   return (
@@ -151,9 +148,6 @@ export function LogsStatus() {
             <span className={levelClass(line)}>{line}</span>
           </div>
         ))}
-      </div>
-      <div className="p-2 border-t border-base-300 text-sm text-info">
-        {status}
       </div>
     </div>
   );

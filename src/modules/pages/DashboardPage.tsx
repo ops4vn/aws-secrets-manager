@@ -70,7 +70,7 @@ export function DashboardPage() {
               window.addEventListener("mouseup", onUp);
             }}
           />
-          <div id="logs-container" className="h-56 min-h-[6rem]">
+          <div id="logs-container" className="h-80 min-h-[6rem]">
             <LogsStatus />
           </div>
         </section>

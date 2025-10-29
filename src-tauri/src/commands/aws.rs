@@ -2,6 +2,7 @@ use crate::commands::config::SecretContent;
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
 use aws_smithy_types::error::metadata::ProvideErrorMetadata;
 use base64::Engine as _;
+use tauri::Emitter;
 
 // ==== AWS Profiles ====
 #[tauri::command]
@@ -174,15 +175,55 @@ pub async fn check_sso(profile: String) -> Result<bool, String> {
     let loader = aws_config::defaults(aws_config::BehaviorVersion::latest()).profile_name(profile);
     let config = loader.load().await;
     let sts = aws_sdk_sts::Client::new(&config);
-    Ok(sts.get_caller_identity().send().await.is_ok())
+    match sts.get_caller_identity().send().await {
+        Ok(_) => Ok(true),
+        Err(e) => {
+            // Trả về lỗi để phía UI có thể hiển thị thay vì chỉ trả false
+            let msg = match e {
+                SdkError::ServiceError(se) => {
+                    let code = se.err().code().unwrap_or("");
+                    let message = se.err().message().unwrap_or("Unknown service error");
+                    format!("{code}: {message}")
+                }
+                SdkError::DispatchFailure(df) => format!("Network/dispatch error: {df:?}"),
+                SdkError::TimeoutError(te) => format!("Request timed out: {te:?}"),
+                other => format!("SDK error: {other:?}"),
+            };
+            Err(format!("SSO invalid or expired: {msg}"))
+        }
+    }
 }
 
 #[tauri::command]
-pub async fn trigger_sso_login(profile: String) -> Result<bool, String> {
+pub async fn trigger_sso_login(app: tauri::AppHandle, profile: String) -> Result<bool, String> {
     std::process::Command::new("aws")
         .args(["sso", "login", "--profile", &profile])
         .spawn()
         .map_err(|e| format!("spawn error: {e}"))?;
+
+    // Poll STS until SSO is valid, then emit an event to frontend
+    let app_handle = app.clone();
+    let profile_clone = profile.clone();
+    tauri::async_runtime::spawn(async move {
+        let loader = aws_config::defaults(aws_config::BehaviorVersion::latest())
+            .profile_name(profile_clone.clone());
+        let config = loader.load().await;
+        let sts = aws_sdk_sts::Client::new(&config);
+        let mut success = false;
+        for _ in 0..60 {
+            if sts.get_caller_identity().send().await.is_ok() {
+                success = true;
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        }
+        if success {
+            let _ = app_handle.emit("sso_login_ok", profile_clone);
+        } else {
+            let _ = app_handle.emit("sso_login_timeout", "timeout");
+        }
+    });
+
     Ok(true)
 }
 

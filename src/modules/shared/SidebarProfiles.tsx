@@ -21,6 +21,7 @@ export function SidebarProfiles() {
     saveDefault,
     listSecrets,
     checkSsoFlow,
+    triggerSsoLogin,
   } = useDashboardStore();
 
   return (
@@ -90,13 +91,28 @@ export function SidebarProfiles() {
             </div>
           </div>
         </div>
-        <button
-          className="btn btn-ghost btn-xs"
-          onClick={() => checkSsoFlow()}
-          disabled={!!ssoChecking}
-        >
-          <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Re-check
-        </button>
+        <div className="flex items-center gap-2">
+          {ssoValid === false && !ssoChecking && (
+            <button
+              className="btn btn-error btn-xs text-white"
+              onClick={async () => {
+                await triggerSsoLogin();
+                setTimeout(() => {
+                  void checkSsoFlow();
+                }, 3000);
+              }}
+            >
+              <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Đăng nhập SSO
+            </button>
+          )}
+          <button
+            className="btn btn-ghost btn-xs"
+            onClick={() => checkSsoFlow()}
+            disabled={!!ssoChecking}
+          >
+            <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Re-check
+          </button>
+        </div>
       </div>
 
       <div className="divider my-1"></div>
