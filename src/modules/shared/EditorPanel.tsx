@@ -14,24 +14,17 @@ import {
   EyeOff,
 } from "lucide-react";
 import { decodeBase64, isValidBase64 } from "./utils/base64Utils";
+import { useDashboardStore } from "../store/useDashboardStore";
 
-type Props = {
-  content: string;
-  onChange: (v: string) => void;
-  isEditing: boolean;
-  isBinary?: boolean;
-  onSave: () => void;
-  onCancel: () => void;
-};
-
-export function EditorPanel({
-  content,
-  onChange,
-  isEditing,
-  isBinary = false,
-  onSave,
-  onCancel,
-}: Props) {
+export function EditorPanel() {
+  const {
+    editorContent: content,
+    setEditorContent: onChange,
+    isEditing,
+    isBinary,
+    save: onSave,
+    cancelEdit: onCancel,
+  } = useDashboardStore();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isDarkTheme, setIsDarkTheme] = useState<boolean>(
     typeof document !== "undefined" &&

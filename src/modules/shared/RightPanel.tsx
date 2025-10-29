@@ -6,36 +6,44 @@ import {
   BookOpen,
   RefreshCcw,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-type Props = {
-  searchQuery: string;
-  setSearchQuery: (v: string) => void;
-  results: string[];
-  allNames: string[];
-  onSelect: (name: string) => void;
-  onForceReload: () => void;
-};
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDashboardStore } from "../store/useDashboardStore";
 
-export function RightPanel({
-  searchQuery,
-  setSearchQuery,
-  results,
-  allNames,
-  onSelect,
-  onForceReload,
-}: Props) {
+export function RightPanel() {
+  const {
+    searchQuery,
+    setSearchQuery,
+    allNames,
+    listSecrets,
+    setSecretId,
+    fetchSecretById,
+  } = useDashboardStore();
   const panelRef = useRef<HTMLDivElement | null>(null);
-  // Debounce input to avoid lag when filtering large lists
   const [localQuery, setLocalQuery] = useState<string>(searchQuery);
   const [showSearch, setShowSearch] = useState<boolean>(false);
+  const trimmed = useMemo(() => localQuery.trim(), [localQuery]);
+
   useEffect(() => {
     setLocalQuery(searchQuery);
   }, [searchQuery]);
+
   useEffect(() => {
     const id = setTimeout(() => setSearchQuery(localQuery), 250);
     return () => clearTimeout(id);
-  }, [localQuery]);
-  const trimmed = localQuery.trim();
+  }, [localQuery, setSearchQuery]);
+
+  const results = trimmed
+    ? allNames.filter((n) => n.toLowerCase().includes(trimmed.toLowerCase()))
+    : [];
+
+  const handleSelect = useCallback(
+    async (name: string) => {
+      setSecretId(name);
+      await fetchSecretById(name);
+    },
+    [setSecretId, fetchSecretById]
+  );
+
   return (
     <div className="flex flex-col gap-3" ref={panelRef}>
       <div className="sticky top-0 z-20 px-4 bg-base-100/95 supports-[backdrop-filter]:bg-base-100/80 backdrop-blur border-b border-base-300 py-2">
@@ -67,7 +75,7 @@ export function RightPanel({
             <button
               className="btn btn-ghost btn-xs text-error"
               title="Force reload"
-              onClick={onForceReload}
+              onClick={() => listSecrets(true)}
             >
               <RefreshCcw className="h-4 w-4" />
             </button>
@@ -113,13 +121,13 @@ export function RightPanel({
                 <FileText className="h-4 w-4" />
                 <button
                   className="text-left text-base-content hover:text-primary w-full whitespace-normal break-words"
-                  onClick={() => onSelect(name)}
+                  onClick={() => handleSelect(name)}
                 >
                   <span className="text-base-content/70">{name}</span>
                 </button>
                 <button
                   className="btn btn-ghost btn-xs"
-                  onClick={() => onSelect(name)}
+                  onClick={() => handleSelect(name)}
                 >
                   <BookOpen className="h-3.5 w-3.5 mr-1" /> Get
                 </button>
@@ -135,7 +143,7 @@ export function RightPanel({
               <TreeNode
                 key={node.name + node.full}
                 node={node}
-                onSelect={onSelect}
+                onSelect={handleSelect}
               />
             ))}
           </ul>

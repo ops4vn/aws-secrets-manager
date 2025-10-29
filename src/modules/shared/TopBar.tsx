@@ -1,24 +1,17 @@
 import { BookOpen, Edit3, Plus } from "lucide-react";
 import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
-type Props = {
-  secretId: string;
-  setSecretId: (v: string) => void;
-  isEditing: boolean;
-  isCreatingNew: boolean;
-  onGet: () => void;
-  onEdit: () => void;
-  onNew: () => void;
-};
+import { useDashboardStore } from "../store/useDashboardStore";
 
-export function TopBar({
-  secretId,
-  setSecretId,
-  isEditing,
-  isCreatingNew,
-  onGet,
-  onEdit,
-  onNew,
-}: Props) {
+export function TopBar() {
+  const {
+    secretId,
+    setSecretId,
+    isEditing,
+    isCreatingNew,
+    fetchSecretById,
+    startEdit,
+    startCreateNew,
+  } = useDashboardStore();
   return (
     <div className="navbar bg-base-100 border-b border-base-300 px-4 gap-4">
       <div className="flex flex-1 items-center gap-3">
@@ -55,7 +48,7 @@ export function TopBar({
           className="btn btn-sm"
           disabled={isEditing}
           title={isEditing ? "Cancel edit first to prevent data loss" : ""}
-          onClick={onGet}
+          onClick={() => fetchSecretById(secretId)}
         >
           <BookOpen className="h-4 w-4 mr-1" /> Get Secret
         </button>
@@ -69,7 +62,7 @@ export function TopBar({
               ? "Already in edit mode"
               : ""
           }
-          onClick={onEdit}
+          onClick={startEdit}
         >
           <Edit3 className="h-4 w-4 mr-1" /> Edit
         </button>
@@ -77,7 +70,7 @@ export function TopBar({
           className="btn btn-sm"
           disabled={isEditing}
           title={isEditing ? "Finish current edit first" : ""}
-          onClick={onNew}
+          onClick={startCreateNew}
         >
           <Plus className="h-4 w-4 mr-1" /> New Secret
         </button>

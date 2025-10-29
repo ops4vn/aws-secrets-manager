@@ -8,31 +8,21 @@ import {
   Star,
   XCircle,
 } from "lucide-react";
-type Props = {
-  profiles: string[];
-  selectedProfile: string;
-  defaultProfile?: string;
-  onSelect: (profile: string) => void;
-  onSetDefault: () => void;
-  onListSecrets: () => void;
-  onForceReload: () => void;
-  onCheckSSO: () => void;
-  ssoValid?: boolean;
-  ssoChecking?: boolean;
-};
+import { useDashboardStore } from "../store/useDashboardStore";
 
-export function SidebarProfiles({
-  profiles,
-  selectedProfile,
-  defaultProfile,
-  onSelect,
-  onSetDefault,
-  onListSecrets,
-  onForceReload,
-  onCheckSSO,
-  ssoValid,
-  ssoChecking,
-}: Props) {
+export function SidebarProfiles() {
+  const {
+    profiles,
+    selectedProfile,
+    defaultProfile,
+    ssoValid,
+    ssoChecking,
+    setSelectedProfile,
+    saveDefault,
+    listSecrets,
+    checkSsoFlow,
+  } = useDashboardStore();
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -50,8 +40,8 @@ export function SidebarProfiles({
         </label>
         <select
           className="select select-bordered w-full"
-          value={selectedProfile}
-          onChange={(e) => onSelect(e.target.value)}
+          value={selectedProfile ?? defaultProfile ?? "default"}
+          onChange={(e) => setSelectedProfile(e.target.value)}
         >
           {profiles.map((p) => (
             <option key={p} value={p}>
@@ -62,12 +52,12 @@ export function SidebarProfiles({
       </div>
 
       <div className="flex items-center justify-between gap-2 w-full">
-        <button className="btn btn-primary btn-sm" onClick={onSetDefault}>
+        <button className="btn btn-primary btn-sm" onClick={saveDefault}>
           <Star className="h-4 w-4 mr-1" /> Set default
         </button>
         <button
           className="btn btn-sm bg-[#FF9900] hover:bg-[#e58a00] text-white border-none"
-          onClick={onCheckSSO}
+          onClick={() => checkSsoFlow()}
           disabled={!!ssoChecking}
           title={ssoChecking ? "Checking..." : "Check SSO"}
         >
@@ -102,7 +92,7 @@ export function SidebarProfiles({
         </div>
         <button
           className="btn btn-ghost btn-xs"
-          onClick={onCheckSSO}
+          onClick={() => checkSsoFlow()}
           disabled={!!ssoChecking}
         >
           <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Re-check
@@ -111,10 +101,16 @@ export function SidebarProfiles({
 
       <div className="divider my-1"></div>
       <div className="grid grid-cols-2 gap-2">
-        <button className="btn btn-outline btn-sm" onClick={onListSecrets}>
+        <button
+          className="btn btn-outline btn-sm"
+          onClick={() => listSecrets(false)}
+        >
           <List className="h-4 w-4 mr-1" /> List Secrets
         </button>
-        <button className="btn btn-outline btn-sm" onClick={onForceReload}>
+        <button
+          className="btn btn-outline btn-sm"
+          onClick={() => listSecrets(true)}
+        >
           <RefreshCcw className="h-4 w-4 mr-1" /> Force Reload
         </button>
       </div>
