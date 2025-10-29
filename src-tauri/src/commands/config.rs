@@ -9,7 +9,7 @@ pub struct SecretMetadata {
 }
 
 // ==== Types shared to FE ====
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct SecretContent {
     pub string: Option<String>,
     pub binary_base64: Option<String>,
@@ -26,6 +26,14 @@ fn cache_path(profile: &str) -> Option<PathBuf> {
     Some(
         dir.join("secmanager")
             .join(format!("secrets_{}.json", profile)),
+    )
+}
+
+fn metadata_cache_path(profile: &str) -> Option<PathBuf> {
+    let dir = dirs::config_dir()?;
+    Some(
+        dir.join("secmanager")
+            .join(format!("secrets_meta_{}.json", profile)),
     )
 }
 
@@ -99,7 +107,7 @@ pub fn load_cached_secret_names(profile: &str) -> Option<Vec<String>> {
 
 #[tauri::command]
 pub fn load_cached_secret_metadata(profile: &str) -> Option<Vec<SecretMetadata>> {
-    let path = cache_path(profile)?;
+    let path = metadata_cache_path(profile)?;
     let data = fs::read_to_string(path).ok()?;
     // Only load metadata format (with actual fetch data)
     // Do NOT convert old format to metadata - we only want metadata from actual fetches
@@ -117,7 +125,7 @@ pub fn save_cached_secret_names(profile: &str, names: Vec<String>) -> bool {
 
 #[tauri::command]
 pub fn save_cached_secret_metadata(profile: &str, metadata: Vec<SecretMetadata>) -> bool {
-    if let Some(path) = cache_path(profile) {
+    if let Some(path) = metadata_cache_path(profile) {
         let _ = fs::create_dir_all(path.parent().unwrap());
         return fs::write(
             path,

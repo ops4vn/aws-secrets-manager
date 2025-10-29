@@ -22,6 +22,7 @@ pub fn run() {
             commands::aws::list_secrets,
             commands::aws::list_secrets_with_metadata,
             commands::aws::fetch_secret,
+            commands::aws::fetch_secret_async,
             commands::aws::create_secret,
             commands::aws::update_secret,
             commands::aws::check_sso,

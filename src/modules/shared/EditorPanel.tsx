@@ -30,6 +30,9 @@ export function EditorPanel() {
     isEditing,
     isCreatingNew,
     isBinary,
+    isFetchingSecret,
+    fetchingSecretId,
+    fetchedBinaryTooLarge,
     save: onSave,
     cancelEdit: onCancel,
     switchTab,
@@ -427,6 +430,23 @@ export function EditorPanel() {
         </div>
       )}
 
+      {/* Fetching overlay */}
+      {isFetchingSecret && (
+        <div className="absolute inset-0 bg-base-100/70 z-40 flex items-center justify-center">
+          <div className="px-4 py-3 rounded-md border border-base-300 bg-base-100 shadow flex items-center gap-3">
+            <span className="loading loading-spinner loading-md" />
+            <div className="text-sm">
+              <div className="font-medium">Loading secret...</div>
+              {fetchingSecretId && (
+                <div className="opacity-70 truncate max-w-[50vw]">
+                  {fetchingSecretId}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       {tabs.length > 0 && (
         <div className="flex items-center gap-1 mb-2 overflow-x-auto border-b border-base-300 pb-1">
@@ -654,6 +674,27 @@ export function EditorPanel() {
               <div className="mt-3 text-xs opacity-70">
                 The binary will be uploaded as base64-decoded bytes to AWS
                 Secrets Manager.
+              </div>
+            </div>
+          ) : fetchedBinaryTooLarge && !isEditing ? (
+            <div className="border border-base-300 rounded-md p-4 bg-base-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">
+                    Binary secret (content hidden)
+                  </div>
+                  <div className="text-sm opacity-80 mt-1">
+                    <span className="mr-3">
+                      Name: {fetchedBinaryTooLarge.name}
+                    </span>
+                    <span>
+                      Size: {(fetchedBinaryTooLarge.size / 1024).toFixed(2)} KB
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-xs opacity-70">
+                This binary is larger than 50KB, so content is not displayed.
               </div>
             </div>
           ) : isEditing ? (

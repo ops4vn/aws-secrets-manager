@@ -2,6 +2,7 @@ use crate::commands::config::{SecretContent, SecretMetadata};
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
 use aws_smithy_types::error::metadata::ProvideErrorMetadata;
 use base64::Engine as _;
+use serde::Serialize;
 use tauri::Emitter;
 
 // ==== AWS Profiles ====
@@ -150,6 +151,89 @@ pub async fn fetch_secret(
         });
     }
     Err("Secret has neither string nor binary".to_string())
+}
+
+#[derive(Serialize, Clone)]
+struct SecretFetchResult {
+    secret_id: String,
+    content: SecretContent,
+}
+
+#[derive(Serialize, Clone)]
+struct SecretFetchError {
+    secret_id: String,
+    error: String,
+}
+
+#[tauri::command]
+pub async fn fetch_secret_async(
+    app: tauri::AppHandle,
+    profile: Option<String>,
+    secret_id: String,
+) -> Result<bool, String> {
+    let profile_clone = profile.clone();
+    let secret_id_clone = secret_id.clone();
+
+    tauri::async_runtime::spawn(async move {
+        let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
+        if let Some(p) = profile_clone {
+            loader = loader.profile_name(p);
+        }
+        let config = loader.load().await;
+        let client = aws_sdk_secretsmanager::Client::new(&config);
+
+        match client
+            .get_secret_value()
+            .secret_id(&secret_id_clone)
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                let content = if let Some(s) = resp.secret_string {
+                    SecretContent {
+                        string: Some(s),
+                        binary_base64: None,
+                    }
+                } else if let Some(b) = resp.secret_binary {
+                    SecretContent {
+                        string: None,
+                        binary_base64: Some(
+                            base64::engine::general_purpose::STANDARD.encode(b.as_ref()),
+                        ),
+                    }
+                } else {
+                    let _ = app.emit(
+                        "secret_fetch_error",
+                        SecretFetchError {
+                            secret_id: secret_id_clone,
+                            error: "Secret has neither string nor binary".to_string(),
+                        },
+                    );
+                    return;
+                };
+
+                let _ = app.emit(
+                    "secret_fetch_ok",
+                    SecretFetchResult {
+                        secret_id: secret_id_clone,
+                        content,
+                    },
+                );
+            }
+            Err(e) => {
+                let error_msg = format!("{}", format_get_error(&e, &secret_id_clone));
+                let _ = app.emit(
+                    "secret_fetch_error",
+                    SecretFetchError {
+                        secret_id: secret_id_clone.clone(),
+                        error: error_msg,
+                    },
+                );
+            }
+        }
+    });
+
+    Ok(true)
 }
 
 #[tauri::command]

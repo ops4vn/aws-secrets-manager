@@ -16,6 +16,8 @@ export const api = {
   listSecretsWithMetadata: (profile?: string | null) => invoke<SecretMetadata[]>("list_secrets_with_metadata", { profile: profile ?? null }),
   fetchSecret: (profile: string | null | undefined, secretId: string) =>
     invoke<SecretContent>("fetch_secret", { profile: profile ?? null, secretId }),
+  fetchSecretAsync: (profile: string | null | undefined, secretId: string) =>
+    invoke<boolean>("fetch_secret_async", { profile: profile ?? null, secretId }),
   createSecret: (
     profile: string | null | undefined,
     secretId: string,

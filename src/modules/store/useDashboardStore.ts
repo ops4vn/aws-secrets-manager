@@ -26,8 +26,15 @@ type State = {
   secretMetadata: Record<string, boolean>; // name -> is_binary
   importedBinary: { name: string; size: number; base64: string } | null;
 
+  // loading
+  isFetchingSecret: boolean;
+  fetchingSecretId: string | null;
+
+  // fetched large binary (do not render content)
+  fetchedBinaryTooLarge: { name: string; size: number } | null;
+
   // tabs
-  tabs: Array<{ id: string; secretId: string; content: string; isBinary: boolean }>;
+  tabs: Array<{ id: string; secretId: string; content: string; isBinary: boolean; isTooLarge?: boolean; binarySize?: number }>;
   activeTabId: string | null;
 
   // sso
@@ -74,9 +81,10 @@ type Actions = {
   save: () => Promise<void>;
   cancelEdit: () => void;
   setSecretId: (v: string) => void;
+  _computeBase64Size: (b64: string) => number;
 
   // tabs
-  openTab: (secretId: string, content: string, isBinary: boolean) => string;
+  openTab: (secretId: string, content: string, isBinary: boolean, meta?: { isTooLarge?: boolean; binarySize?: number }) => string;
   closeTab: (tabId: string) => void;
   switchTab: (tabId: string) => void;
 
@@ -105,6 +113,10 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
   allNames: [],
   secretMetadata: {},
   importedBinary: null,
+
+  isFetchingSecret: false,
+  fetchingSecretId: null,
+  fetchedBinaryTooLarge: null,
 
   tabs: [],
   activeTabId: null,
@@ -148,6 +160,13 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
   setImportedBinary: (p) => set({ importedBinary: p }),
   setSecretId: (v) => set({ secretId: v }),
 
+  // helper: compute base64 size
+  _computeBase64Size: (b64: string): number => {
+    const len = b64.length;
+    const padding = (b64.endsWith("==") ? 2 : (b64.endsWith("=") ? 1 : 0));
+    return Math.floor((len * 3) / 4) - padding;
+  },
+
   initLoad: async () => {
     try {
       const df = await api.loadDefaultProfile();
@@ -182,6 +201,148 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
           set({ ssoValid: false, ssoChecking: false });
           get().pushWarn("SSO login timeout");
         });
+
+        // Listen for async secret fetch events
+        void listen<{ secret_id: string; content: SecretContent }>("secret_fetch_ok", async (ev) => {
+          const { secret_id, content } = ev.payload;
+          const st3 = get();
+
+          // Ignore event if we're now fetching a different secret
+          if (st3.isFetchingSecret && st3.fetchingSecretId !== secret_id) {
+            st3.pushWarn(`Ignoring fetch result for ${secret_id} (now fetching ${st3.fetchingSecretId})`);
+            return;
+          }
+
+          // Process content in chunks to avoid blocking UI
+          await new Promise(resolve => setTimeout(resolve, 0));
+
+          const st2 = get();
+          let parsedContent = "";
+          let isBinary = false;
+          let didOpenTab = false;
+
+          if (content.string) {
+            // Yield control before parsing large JSON
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            try {
+              const parsed = JSON.parse(content.string);
+              // Yield again before stringifying
+              await new Promise(resolve => setTimeout(resolve, 0));
+              parsedContent = JSON.stringify(parsed, null, 2);
+              isBinary = false;
+            } catch {
+              parsedContent = content.string;
+              isBinary = false;
+            }
+          } else if (content.binary_base64) {
+            // Calculate approximate size from base64
+            const b64 = content.binary_base64;
+            const len = b64.length;
+            const padding = (b64.endsWith("==") ? 2 : (b64.endsWith("=") ? 1 : 0));
+            const sizeBytes = Math.floor((len * 3) / 4) - padding;
+            isBinary = true;
+
+            if (sizeBytes > 50 * 1024) {
+              // Too large to render in editor; show metadata panel instead
+              parsedContent = "";
+              set({ fetchedBinaryTooLarge: { name: secret_id, size: sizeBytes } });
+              // Open tab with meta indicating too-large binary
+              const tabId = st2.openTab(secret_id, parsedContent, isBinary, { isTooLarge: true, binarySize: sizeBytes });
+              set({
+                activeTabId: tabId,
+                secretId: secret_id,
+                editorContent: parsedContent,
+                isBinary: isBinary,
+                isEditing: false,
+                isCreatingNew: false,
+                isFetchingSecret: false,
+                fetchingSecretId: null,
+              });
+
+              // proceed to cache and recent below
+              didOpenTab = true;
+            } else {
+              parsedContent = b64;
+              set({ fetchedBinaryTooLarge: null });
+              // Open tab with non-too-large binary
+              const tabId = st2.openTab(secret_id, parsedContent, isBinary, { isTooLarge: false, binarySize: sizeBytes });
+              set({
+                activeTabId: tabId,
+                secretId: secret_id,
+                editorContent: parsedContent,
+                isBinary: isBinary,
+                isEditing: false,
+                isCreatingNew: false,
+                isFetchingSecret: false,
+                fetchingSecretId: null,
+              });
+              didOpenTab = true;
+            }
+          } else {
+            parsedContent = "";
+            isBinary = false;
+            set({ fetchedBinaryTooLarge: null });
+          }
+
+          // If JSON or other small content branch didn't open tab yet, open now
+          if (!didOpenTab) {
+            const tabId = st2.openTab(secret_id, parsedContent, isBinary, { isTooLarge: false });
+            set({
+              activeTabId: tabId,
+              secretId: secret_id,
+              editorContent: parsedContent,
+              isBinary: isBinary,
+              isEditing: false,
+              isCreatingNew: false,
+              isFetchingSecret: false,
+              fetchingSecretId: null,
+            });
+          }
+
+          // Yield before cache operations
+          await new Promise(resolve => setTimeout(resolve, 0));
+
+          // Yield before cache operations
+          await new Promise(resolve => setTimeout(resolve, 0));
+
+          // Update metadata cache
+          const profile = st2.selectedProfile ?? st2.defaultProfile;
+          const currentMetadata = st2.secretMetadata;
+          if (currentMetadata[secret_id] !== isBinary) {
+            currentMetadata[secret_id] = isBinary;
+            set({ secretMetadata: { ...currentMetadata } });
+            // Save to cache
+            if (profile) {
+              const cachedMetadata = await api.loadCachedSecretMetadata(profile);
+              let updatedMetadata: Array<{ name: string; is_binary: boolean }>;
+              if (cachedMetadata) {
+                const existingIndex = cachedMetadata.findIndex(m => m.name === secret_id);
+                if (existingIndex >= 0) {
+                  updatedMetadata = cachedMetadata.map(m =>
+                    m.name === secret_id ? { name: m.name, is_binary: isBinary } : m
+                  );
+                } else {
+                  updatedMetadata = [...cachedMetadata, { name: secret_id, is_binary: isBinary }];
+                }
+              } else {
+                updatedMetadata = [{ name: secret_id, is_binary: isBinary }];
+              }
+              await api.saveCachedSecretMetadata(profile, updatedMetadata);
+            }
+          }
+
+          // Add to recent secrets
+          await st2.addToRecent(secret_id);
+          st2.pushSuccess("Fetched secret");
+        });
+
+        void listen<{ secret_id: string; error: string }>("secret_fetch_error", (ev) => {
+          const { secret_id, error } = ev.payload;
+          set({ isFetchingSecret: false, fetchingSecretId: null });
+          get().pushError(`Fetch error for ${secret_id}: ${error}`);
+        });
+
         set({ _eventsBound: true });
       }
 
@@ -297,70 +458,26 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
       return;
     }
 
+    // If already fetching a different secret, clear loading state first
+    if (st.isFetchingSecret && st.fetchingSecretId !== name) {
+      st.pushInfo(`Cancelling previous fetch: ${st.fetchingSecretId}`);
+    }
+
     st.pushInfo(`Fetching secret: ${name}`);
+    // Clear any stale large-binary panel immediately so editor doesn't keep showing metadata
+    set({ fetchedBinaryTooLarge: null, isFetchingSecret: true, fetchingSecretId: name });
+
+    // Yield to allow UI to update loading state
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Start async fetch - will emit event when done
+    // This doesn't block the UI thread
     try {
-      const res: SecretContent = await api.fetchSecret(profile ?? null, name);
-      let content = "";
-      let isBinary = false;
-
-      if (res.string) {
-        try {
-          const parsed = JSON.parse(res.string);
-          content = JSON.stringify(parsed, null, 2);
-          isBinary = false;
-        } catch {
-          content = res.string;
-          isBinary = false;
-        }
-      } else if (res.binary_base64) {
-        content = res.binary_base64;
-        isBinary = true;
-      } else {
-        content = "";
-        isBinary = false;
-      }
-
-      // Mở tab mới với content đã fetch
-      const tabId = st.openTab(name, content, isBinary);
-      // Sync editor state với tab vừa mở
-      set({
-        activeTabId: tabId,
-        secretId: name,
-        editorContent: content,
-        isBinary: isBinary,
-        isEditing: false,
-        isCreatingNew: false
-      });
-
-      // Update metadata cache (only after actual fetch, not from list)
-      const currentMetadata = st.secretMetadata;
-      if (currentMetadata[name] !== isBinary) {
-        currentMetadata[name] = isBinary;
-        set({ secretMetadata: { ...currentMetadata } });
-        // Save to cache - only update this specific secret's metadata
-        const cachedMetadata = await api.loadCachedSecretMetadata(profile ?? "");
-        let updatedMetadata: Array<{ name: string; is_binary: boolean }>;
-        if (cachedMetadata) {
-          // Check if secret already exists in cache, update it; otherwise add it
-          const existingIndex = cachedMetadata.findIndex(m => m.name === name);
-          if (existingIndex >= 0) {
-            updatedMetadata = cachedMetadata.map(m =>
-              m.name === name ? { name: m.name, is_binary: isBinary } : m
-            );
-          } else {
-            updatedMetadata = [...cachedMetadata, { name, is_binary: isBinary }];
-          }
-        } else {
-          updatedMetadata = [{ name, is_binary: isBinary }];
-        }
-        await api.saveCachedSecretMetadata(profile ?? "", updatedMetadata);
-      }
-
-      // Add to recent secrets
-      await st.addToRecent(name);
-      st.pushSuccess("Fetched secret");
+      await api.fetchSecretAsync(profile ?? null, name);
+      // Event handler will process the result
     } catch (e) {
-      st.pushError(`Fetch error: ${String(e)}`);
+      set({ isFetchingSecret: false, fetchingSecretId: null });
+      st.pushError(`Failed to start fetch: ${String(e)}`);
     }
   },
 
@@ -414,10 +531,10 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
     get().pushInfo("Edit mode cancelled");
   },
 
-  openTab: (secretId: string, content: string, isBinary: boolean) => {
+  openTab: (secretId: string, content: string, isBinary: boolean, meta?: { isTooLarge?: boolean; binarySize?: number }) => {
     const st = get();
     const tabId = `tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const newTab = { id: tabId, secretId, content, isBinary };
+    const newTab = { id: tabId, secretId, content, isBinary, isTooLarge: meta?.isTooLarge, binarySize: meta?.binarySize };
     set({ tabs: [...st.tabs, newTab], activeTabId: tabId });
     return tabId;
   },
@@ -442,6 +559,18 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
     }
 
     const activeTab = newTabs.find(t => t.id === newActiveTabId);
+    // compute fetchedBinaryTooLarge for the new active tab
+    let tooLarge: { name: string; size: number } | null = null;
+    if (activeTab && activeTab.isBinary) {
+      if (activeTab.isTooLarge && activeTab.binarySize) {
+        tooLarge = { name: activeTab.secretId, size: activeTab.binarySize };
+      } else if (activeTab.content) {
+        const sizeBytes = get()._computeBase64Size(activeTab.content);
+        if (sizeBytes > 50 * 1024) {
+          tooLarge = { name: activeTab.secretId, size: sizeBytes };
+        }
+      }
+    }
     set({
       tabs: newTabs,
       activeTabId: newActiveTabId,
@@ -450,6 +579,7 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
       isBinary: activeTab?.isBinary ?? false,
       isEditing: false,
       isCreatingNew: false,
+      fetchedBinaryTooLarge: tooLarge,
     });
   },
 
@@ -457,6 +587,17 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
     const st = get();
     const tab = st.tabs.find(t => t.id === tabId);
     if (tab) {
+      let tooLarge: { name: string; size: number } | null = null;
+      if (tab.isBinary) {
+        if (tab.isTooLarge && tab.binarySize) {
+          tooLarge = { name: tab.secretId, size: tab.binarySize };
+        } else if (tab.content) {
+          const sizeBytes = st._computeBase64Size(tab.content);
+          if (sizeBytes > 50 * 1024) {
+            tooLarge = { name: tab.secretId, size: sizeBytes };
+          }
+        }
+      }
       set({
         activeTabId: tabId,
         secretId: tab.secretId,
@@ -464,6 +605,7 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
         isBinary: tab.isBinary,
         isEditing: false,
         isCreatingNew: false,
+        fetchedBinaryTooLarge: tooLarge,
       });
     }
   },
