@@ -10,7 +10,10 @@ import {
   WrapText,
   ClipboardList,
   ClipboardCheck,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { decodeBase64, isValidBase64 } from "./utils/base64Utils";
 
 type Props = {
   content: string;
@@ -37,6 +40,7 @@ export function EditorPanel({
   const [wrap, setWrap] = useState<boolean>(false);
   const [showKeyPicker, setShowKeyPicker] = useState<boolean>(false);
   const [copyByKeyCopied, setCopyByKeyCopied] = useState<boolean>(false);
+  const [isDecoded, setIsDecoded] = useState<boolean>(false);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -49,9 +53,10 @@ export function EditorPanel({
     handler();
     return () => observer.disconnect();
   }, []);
+
   const viewText = useMemo(() => {
     if (isEditing) return null as string | null;
-    if (isBinary) return "Base64 view";
+
     try {
       JSON.parse(content);
       return "JSON view";
@@ -77,24 +82,74 @@ export function EditorPanel({
       );
     } catch {}
     if (isBinary) {
-      return (
-        <pre
-          className={`overflow-auto max-h-[48vh] p-3 rounded-md bg-base-100 border border-base-300 text-xs leading-5 ${
-            wrap ? "whitespace-pre-wrap break-words" : ""
-          }`}
-        >
-          {chunkBase64(content).map((seg, idx) => (
-            <span
-              key={idx}
-              className={
-                idx % 2 === 0 ? "text-primary" : "text-base-content/70"
-              }
+      // If it's binary and valid base64, show decoded/encoded based on toggle
+      if (isValidBase64(content)) {
+        if (isDecoded) {
+          try {
+            const decodedContent = decodeBase64(content);
+            return (
+              <pre
+                className={`overflow-auto max-h-[48vh] p-3 rounded-md bg-base-100 border border-base-300 text-sm ${
+                  wrap ? "whitespace-pre-wrap break-words" : ""
+                }`}
+              >
+                {decodedContent}
+              </pre>
+            );
+          } catch (error) {
+            return (
+              <pre
+                className={`overflow-auto max-h-[48vh] p-3 rounded-md bg-base-100 border border-base-300 text-sm text-error ${
+                  wrap ? "whitespace-pre-wrap break-words" : ""
+                }`}
+              >
+                Error decoding base64:{" "}
+                {error instanceof Error ? error.message : "Unknown error"}
+              </pre>
+            );
+          }
+        } else {
+          // Show encoded (base64) with chunking for better readability
+          return (
+            <pre
+              className={`overflow-auto max-h-[48vh] p-3 rounded-md bg-base-100 border border-base-300 text-xs leading-5 ${
+                wrap ? "whitespace-pre-wrap break-words" : ""
+              }`}
             >
-              {seg}
-            </span>
-          ))}
-        </pre>
-      );
+              {chunkBase64(content).map((seg, idx) => (
+                <span
+                  key={idx}
+                  className={
+                    idx % 2 === 0 ? "text-primary" : "text-base-content/70"
+                  }
+                >
+                  {seg}
+                </span>
+              ))}
+            </pre>
+          );
+        }
+      } else {
+        // Not valid base64, show as regular binary
+        return (
+          <pre
+            className={`overflow-auto max-h-[48vh] p-3 rounded-md bg-base-100 border border-base-300 text-xs leading-5 ${
+              wrap ? "whitespace-pre-wrap break-words" : ""
+            }`}
+          >
+            {chunkBase64(content).map((seg, idx) => (
+              <span
+                key={idx}
+                className={
+                  idx % 2 === 0 ? "text-primary" : "text-base-content/70"
+                }
+              >
+                {seg}
+              </span>
+            ))}
+          </pre>
+        );
+      }
     }
     return (
       <pre
@@ -105,7 +160,7 @@ export function EditorPanel({
         {content}
       </pre>
     );
-  }, [content, isEditing, isBinary, wrap]);
+  }, [content, isEditing, isBinary, wrap, isDecoded]);
   return (
     <div className="p-4 overflow-hidden h-full flex flex-col">
       <div className="flex items-center gap-2 mb-2 relative">
@@ -127,75 +182,83 @@ export function EditorPanel({
             <ClipboardCopy className="h-3.5 w-3.5 mr-1" /> Copy
           </button>
         )}
-        {!isEditing && !isBinary && hasContent && (
-          <>
-            <button
-              className={`btn btn-xs ${copyByKeyCopied ? "btn-success" : ""}`}
-              onClick={() => {
-                setShowKeyPicker((s) => !s);
-                if (copyByKeyCopied) setCopyByKeyCopied(false);
-              }}
-              title="Copy by key"
-            >
-              {copyByKeyCopied ? (
-                <ClipboardCheck className="h-3.5 w-3.5 mr-1" />
-              ) : (
-                <ClipboardList className="h-3.5 w-3.5 mr-1" />
-              )}
-              {copyByKeyCopied ? "Copied" : "Copy by key"}
-            </button>
-            <button
-              className={`btn btn-xs ${wrap ? "btn-success" : ""}`}
-              onClick={() => setWrap((w) => !w)}
-              title="Toggle wrap lines"
-            >
-              <WrapText className="h-3.5 w-3.5 mr-1" /> Wrap lines
-            </button>
-            {showKeyPicker && (
-              <div className="absolute z-20 top-8 left-40 w-80 max-h-64 overflow-auto bg-base-100 border border-base-300 rounded-md shadow">
-                <div className="p-2 text-xs opacity-70">
-                  Select a key to copy its value
-                </div>
-                <ul className="menu menu-sm">
-                  {(() => {
-                    try {
-                      const parsed = JSON.parse(content);
-                      const items = extractJsonPaths(parsed).slice(0, 200);
-                      if (items.length === 0)
-                        return (
-                          <li className="px-3 py-2 opacity-60">No keys</li>
-                        );
-                      return items.map(({ path, value }, idx) => (
-                        <li key={idx}>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(value);
-                              setShowKeyPicker(false);
-                              setCopyByKeyCopied(true);
-                              window.setTimeout(
-                                () => setCopyByKeyCopied(false),
-                                1500
-                              );
-                            }}
-                            className="justify-start"
-                            title={value}
-                          >
-                            <span className="truncate max-w-[12rem]">
-                              {path}
-                            </span>
-                          </button>
-                        </li>
-                      ));
-                    } catch {
-                      return (
-                        <li className="px-3 py-2 opacity-60">Invalid JSON</li>
-                      );
-                    }
-                  })()}
-                </ul>
-              </div>
+        {hasContent && isBinary && isValidBase64(content) && (
+          <button
+            className={`btn btn-xs ${isDecoded ? "btn-info" : ""}`}
+            onClick={() => setIsDecoded(!isDecoded)}
+            title={isDecoded ? "Show encoded (base64)" : "Show decoded (text)"}
+          >
+            {isDecoded ? (
+              <EyeOff className="h-3.5 w-3.5 mr-1" />
+            ) : (
+              <Eye className="h-3.5 w-3.5 mr-1" />
             )}
-          </>
+            {isDecoded ? "Encoded" : "Decoded"}
+          </button>
+        )}
+        {!isEditing && !isBinary && hasContent && (
+          <button
+            className={`btn btn-xs ${copyByKeyCopied ? "btn-success" : ""}`}
+            onClick={() => {
+              setShowKeyPicker((s) => !s);
+              if (copyByKeyCopied) setCopyByKeyCopied(false);
+            }}
+            title="Copy by key"
+          >
+            {copyByKeyCopied ? (
+              <ClipboardCheck className="h-3.5 w-3.5 mr-1" />
+            ) : (
+              <ClipboardList className="h-3.5 w-3.5 mr-1" />
+            )}
+            {copyByKeyCopied ? "Copied" : "Copy by key"}
+          </button>
+        )}
+        {!isEditing && hasContent && (
+          <button
+            className={`btn btn-xs ${wrap ? "btn-success" : ""}`}
+            onClick={() => setWrap((w) => !w)}
+            title="Toggle wrap lines"
+          >
+            <WrapText className="h-3.5 w-3.5 mr-1" /> Wrap lines
+          </button>
+        )}
+        {!isEditing && !isBinary && hasContent && showKeyPicker && (
+          <div className="absolute z-20 top-8 left-40 w-80 max-h-64 overflow-auto bg-base-100 border border-base-300 rounded-md shadow">
+            <div className="p-2 text-xs opacity-70">
+              Select a key to copy its value
+            </div>
+            <ul className="menu menu-sm">
+              {(() => {
+                try {
+                  const parsed = JSON.parse(content);
+                  const items = extractJsonPaths(parsed).slice(0, 200);
+                  if (items.length === 0)
+                    return <li className="px-3 py-2 opacity-60">No keys</li>;
+                  return items.map(({ path, value }, idx) => (
+                    <li key={idx}>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(value);
+                          setShowKeyPicker(false);
+                          setCopyByKeyCopied(true);
+                          window.setTimeout(
+                            () => setCopyByKeyCopied(false),
+                            1500
+                          );
+                        }}
+                        className="justify-start"
+                        title={value}
+                      >
+                        <span className="truncate max-w-[12rem]">{path}</span>
+                      </button>
+                    </li>
+                  ));
+                } catch {
+                  return <li className="px-3 py-2 opacity-60">Invalid JSON</li>;
+                }
+              })()}
+            </ul>
+          </div>
         )}
 
         {isEditing && (
