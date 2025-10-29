@@ -1,0 +1,280 @@
+use crate::commands::config::SecretContent;
+use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
+use aws_smithy_types::error::metadata::ProvideErrorMetadata;
+use base64::Engine as _;
+
+// ==== AWS Profiles ====
+#[tauri::command]
+pub async fn load_profiles() -> Result<Vec<String>, String> {
+    // Fallback parser for ~/.aws/config and ~/.aws/credentials
+    let mut names: Vec<String> = Vec::new();
+    let mut add_profile = |raw: &str| {
+        let name = raw.trim().to_string();
+        if !name.is_empty() && !names.contains(&name) {
+            names.push(name);
+        }
+    };
+    if let Some(home) = dirs::home_dir() {
+        let cfg = home.join(".aws").join("config");
+        if let Ok(s) = std::fs::read_to_string(cfg) {
+            for line in s.lines() {
+                let line = line.trim();
+                if line.starts_with('[') && line.ends_with(']') {
+                    let mut inner = &line[1..line.len() - 1];
+                    inner = inner.strip_prefix("profile ").unwrap_or(inner);
+                    add_profile(inner);
+                }
+            }
+        }
+        let creds = home.join(".aws").join("credentials");
+        if let Ok(s) = std::fs::read_to_string(creds) {
+            for line in s.lines() {
+                let line = line.trim();
+                if line.starts_with('[') && line.ends_with(']') {
+                    let inner = &line[1..line.len() - 1];
+                    add_profile(inner);
+                }
+            }
+        }
+    }
+    if names.is_empty() {
+        names.push("default".to_string());
+    }
+    Ok(names)
+}
+
+// ==== AWS Secrets APIs ====
+#[tauri::command]
+pub async fn list_secrets(profile: Option<String>) -> Result<Vec<String>, String> {
+    let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
+    if let Some(p) = profile {
+        loader = loader.profile_name(p);
+    }
+    let config = loader.load().await;
+    let client = aws_sdk_secretsmanager::Client::new(&config);
+
+    let mut out = Vec::new();
+    let mut next: Option<String> = None;
+    loop {
+        let mut req = client.list_secrets().max_results(100);
+        if let Some(token) = next {
+            req = req.next_token(token);
+        }
+        let resp = req
+            .send()
+            .await
+            .map_err(|e| format!("{}", format_list_error(&e)))?;
+        for s in resp.secret_list() {
+            if let Some(n) = s.name() {
+                out.push(n.to_string());
+            }
+        }
+        next = resp.next_token().map(|s| s.to_string());
+        if next.is_none() {
+            break;
+        }
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub async fn fetch_secret(
+    profile: Option<String>,
+    secret_id: String,
+) -> Result<SecretContent, String> {
+    let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
+    if let Some(p) = profile {
+        loader = loader.profile_name(p);
+    }
+    let config = loader.load().await;
+    let client = aws_sdk_secretsmanager::Client::new(&config);
+    let resp = client
+        .get_secret_value()
+        .secret_id(&secret_id)
+        .send()
+        .await
+        .map_err(|e| format!("{}", format_get_error(&e, &secret_id)))?;
+    if let Some(s) = resp.secret_string {
+        return Ok(SecretContent {
+            string: Some(s),
+            binary_base64: None,
+        });
+    }
+    if let Some(b) = resp.secret_binary {
+        return Ok(SecretContent {
+            string: None,
+            binary_base64: Some(base64::engine::general_purpose::STANDARD.encode(b.as_ref())),
+        });
+    }
+    Err("Secret has neither string nor binary".to_string())
+}
+
+#[tauri::command]
+pub async fn create_secret(
+    profile: Option<String>,
+    secret_id: String,
+    secret_value: String,
+    description: Option<String>,
+) -> Result<String, String> {
+    let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
+    if let Some(p) = profile {
+        loader = loader.profile_name(p);
+    }
+    let config = loader.load().await;
+    let client = aws_sdk_secretsmanager::Client::new(&config);
+    let mut req = client
+        .create_secret()
+        .name(secret_id.clone())
+        .secret_string(secret_value);
+    if let Some(desc) = description {
+        req = req.description(desc);
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("{}", format_create_error(&e, &secret_id)))?;
+    Ok(format!(
+        "Created secret: {}",
+        resp.name().unwrap_or("unknown")
+    ))
+}
+
+#[tauri::command]
+pub async fn update_secret(
+    profile: Option<String>,
+    secret_id: String,
+    secret_value: String,
+    description: Option<String>,
+) -> Result<String, String> {
+    let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
+    if let Some(p) = profile {
+        loader = loader.profile_name(p);
+    }
+    let config = loader.load().await;
+    let client = aws_sdk_secretsmanager::Client::new(&config);
+    let mut req = client
+        .update_secret()
+        .secret_id(secret_id)
+        .secret_string(secret_value);
+    if let Some(desc) = description {
+        req = req.description(desc);
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("{}", format_update_error(&e)))?;
+    Ok(format!(
+        "Updated secret: {}",
+        resp.name().unwrap_or("unknown")
+    ))
+}
+
+#[tauri::command]
+pub async fn check_sso(profile: String) -> Result<bool, String> {
+    let loader = aws_config::defaults(aws_config::BehaviorVersion::latest()).profile_name(profile);
+    let config = loader.load().await;
+    let sts = aws_sdk_sts::Client::new(&config);
+    Ok(sts.get_caller_identity().send().await.is_ok())
+}
+
+#[tauri::command]
+pub async fn trigger_sso_login(profile: String) -> Result<bool, String> {
+    std::process::Command::new("aws")
+        .args(["sso", "login", "--profile", &profile])
+        .spawn()
+        .map_err(|e| format!("spawn error: {e}"))?;
+    Ok(true)
+}
+
+// ===== Friendly error formatters (user-facing) =====
+fn format_get_error(
+    e: &SdkError<
+        aws_sdk_secretsmanager::operation::get_secret_value::GetSecretValueError,
+        HttpResponse,
+    >,
+    secret_id: &str,
+) -> String {
+    match e {
+        SdkError::ServiceError(se) => {
+            let err = se.err();
+            let code = err.code().unwrap_or("");
+            match code {
+                "ResourceNotFoundException" => format!("Secret '{secret_id}' does not exist"),
+                "InvalidParameterException" => "Invalid parameter when getting secret".to_string(),
+                _ => format!(
+                    "{code}: {}",
+                    err.message().unwrap_or("Unknown service error")
+                ),
+            }
+        }
+        SdkError::DispatchFailure(df) => format!("Network/dispatch error: {df:?}"),
+        SdkError::TimeoutError(te) => format!("Request timed out: {te:?}"),
+        other => format!("SDK error: {other:?}"),
+    }
+}
+
+fn format_create_error(
+    e: &SdkError<aws_sdk_secretsmanager::operation::create_secret::CreateSecretError, HttpResponse>,
+    secret_id: &str,
+) -> String {
+    match e {
+        SdkError::ServiceError(se) => {
+            let err = se.err();
+            let code = err.code().unwrap_or("");
+            match code {
+                "ResourceExistsException" => {
+                    format!("Secret '{secret_id}' already exists. Use Edit or choose another ID.")
+                }
+                "InvalidParameterException" => "Invalid parameter when creating secret".to_string(),
+                "LimitExceededException" => "Secrets Manager resource limit exceeded".to_string(),
+                _ => format!(
+                    "{code}: {}",
+                    err.message().unwrap_or("Unknown service error")
+                ),
+            }
+        }
+        SdkError::DispatchFailure(df) => format!("Network/dispatch error: {df:?}"),
+        SdkError::TimeoutError(te) => format!("Request timed out: {te:?}"),
+        other => format!("SDK error: {other:?}"),
+    }
+}
+
+fn format_update_error(
+    e: &SdkError<aws_sdk_secretsmanager::operation::update_secret::UpdateSecretError, HttpResponse>,
+) -> String {
+    match e {
+        SdkError::ServiceError(se) => {
+            let err = se.err();
+            let code = err.code().unwrap_or("");
+            match code {
+                "ResourceNotFoundException" => "Secret does not exist for update".to_string(),
+                "InvalidParameterException" => "Invalid parameter when updating secret".to_string(),
+                _ => format!(
+                    "{code}: {}",
+                    err.message().unwrap_or("Unknown service error")
+                ),
+            }
+        }
+        SdkError::DispatchFailure(df) => format!("Network/dispatch error: {df:?}"),
+        SdkError::TimeoutError(te) => format!("Request timed out: {te:?}"),
+        other => format!("SDK error: {other:?}"),
+    }
+}
+
+fn format_list_error(
+    e: &SdkError<aws_sdk_secretsmanager::operation::list_secrets::ListSecretsError, HttpResponse>,
+) -> String {
+    match e {
+        SdkError::ServiceError(se) => {
+            let err = se.err();
+            let code = err.code().unwrap_or("");
+            format!(
+                "{code}: {}",
+                err.message().unwrap_or("Unknown service error")
+            )
+        }
+        SdkError::DispatchFailure(df) => format!("Network/dispatch error: {df:?}"),
+        SdkError::TimeoutError(te) => format!("Request timed out: {te:?}"),
+        other => format!("SDK error: {other:?}"),
+    }
+}
