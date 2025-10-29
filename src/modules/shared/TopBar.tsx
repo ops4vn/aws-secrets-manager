@@ -1,6 +1,7 @@
-import { BookOpen, Edit3, Plus } from "lucide-react";
+import { BookOpen, Edit3, Plus, Upload } from "lucide-react";
 import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
 import { useDashboardStore } from "../store/useDashboardStore";
+import { useRef } from "react";
 
 export function TopBar() {
   const {
@@ -11,7 +12,101 @@ export function TopBar() {
     fetchSecretById,
     startEdit,
     startCreateNew,
+    setEditorContent,
+    setIsBinary,
+    setImportedBinary,
   } = useDashboardStore();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // Determine if file is JSON
+      let importSecretId = file.name.replace(/\.json$/, "").replace(/_/g, "/");
+      let importContent = "";
+      let isBinary = false;
+
+      const isJsonFile =
+        file.type === "application/json" ||
+        file.name.toLowerCase().endsWith(".json");
+      if (isJsonFile) {
+        const text = await file.text();
+        try {
+          const data = JSON.parse(text);
+          // Extract secret ID and content
+          importSecretId = (data?.secretId as string) || importSecretId;
+          if (
+            data &&
+            typeof data === "object" &&
+            ("content" in data || "value" in data)
+          ) {
+            const raw = (data as any).content ?? (data as any).value;
+            importContent =
+              typeof raw === "string" ? raw : JSON.stringify(raw, null, 2);
+            isBinary = false;
+          } else {
+            // New format: entire JSON is the content
+            importContent = JSON.stringify(data, null, 2);
+            isBinary = false;
+          }
+        } catch {
+          // Not valid JSON despite extension/MIME, treat as binary
+          const buf = await file.arrayBuffer();
+          const bytes = new Uint8Array(buf);
+          let binary = "";
+          for (let i = 0; i < bytes.length; i++)
+            binary += String.fromCharCode(bytes[i]);
+          importContent = btoa(binary);
+          isBinary = true;
+        }
+      } else {
+        // Binary file → base64 encode
+        const buf = await file.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++)
+          binary += String.fromCharCode(bytes[i]);
+        importContent = btoa(binary);
+        isBinary = true;
+      }
+
+      // Switch to create/edit mode first (before setting content)
+      startCreateNew();
+
+      // Then set the content and secret IDs
+      setSecretId(importSecretId);
+      if (isBinary) {
+        setImportedBinary({
+          name: file.name,
+          size: file.size,
+          base64: importContent,
+        });
+        setIsBinary(true);
+        setEditorContent("");
+      } else {
+        setImportedBinary(null);
+        setIsBinary(false);
+        setEditorContent(importContent);
+      }
+
+      setTimeout(() => {
+        const secretIdInput = document.querySelector(
+          'input[placeholder="my/app/secret"]'
+        ) as HTMLInputElement;
+        secretIdInput?.focus();
+        secretIdInput?.select();
+      }, 100);
+    } catch (error) {
+      console.error("Failed to import JSON:", error);
+    }
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
   return (
     <div className="navbar bg-base-100 border-b border-base-300 px-4 gap-4">
       <div className="flex flex-1 items-center gap-3">
@@ -74,8 +169,23 @@ export function TopBar() {
         >
           <Plus className="h-4 w-4 mr-1" /> New Secret
         </button>
+        <button
+          className="btn btn-sm"
+          disabled={isEditing}
+          title={isEditing ? "Finish current edit first" : "Import JSON file"}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload className="h-4 w-4 mr-1" /> Import
+        </button>
         <KeyboardShortcutsHelp />
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
     </div>
   );
 }

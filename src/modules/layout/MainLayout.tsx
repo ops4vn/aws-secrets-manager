@@ -23,16 +23,19 @@ export function MainLayout() {
   };
   return (
     <div className="flex flex-col min-h-screen bg-base-200 text-base-content">
-      <div className="navbar bg-base-100 border-b border-base-300 px-4">
+      <div className="navbar bg-base-100 border-b border-base-300 px-2 h-10 min-h-10">
         <div
-          className="flex-1 cursor-grab flex items-center gap-2"
+          className="flex-1 cursor-grab flex items-center gap-1"
           data-tauri-drag-region
         >
           <SidebarToggleButton />
-          <div className="btn btn-ghost text-xl">SecManager</div>
+          <div className="font-semibold text-sm px-2 py-1 h-auto min-h-0">
+            <span className="text-primary">Sec</span>
+            <span className="text-base-content">Manager</span>
+          </div>
         </div>
-        <div className="flex-none gap-2">
-          <label className="swap swap-rotate">
+        <div className="flex-none gap-1">
+          <label className="swap swap-rotate btn btn-ghost btn-sm btn-square h-8 w-8 min-h-0">
             <input
               type="checkbox"
               className="theme-controller"
@@ -40,8 +43,8 @@ export function MainLayout() {
               checked={theme === "dark"}
               onChange={(e) => toggleTheme(e.target.checked)}
             />
-            <Sun className="swap-off h-6 w-6" />
-            <Moon className="swap-on h-6 w-6" />
+            <Sun className="swap-off h-4 w-4" />
+            <Moon className="swap-on h-4 w-4" />
           </label>
         </div>
       </div>
@@ -57,7 +60,9 @@ function SidebarToggleButton() {
   const { leftSidebarOpen, toggleLeftSidebar } = useUiStore();
   return (
     <button
-      className={`btn btn-ghost btn-sm ${leftSidebarOpen ? "" : "opacity-80"}`}
+      className={`btn btn-ghost btn-sm btn-square h-8 w-8 min-h-0 p-0 ${
+        leftSidebarOpen ? "" : "opacity-80"
+      }`}
       onClick={(e) => {
         e.preventDefault();
         toggleLeftSidebar();
@@ -65,7 +70,7 @@ function SidebarToggleButton() {
       title={leftSidebarOpen ? "Hide sidebar" : "Show sidebar"}
       aria-label="Toggle sidebar"
     >
-      <List className="h-5 w-5" />
+      <List className="h-4 w-4" />
     </button>
   );
 }

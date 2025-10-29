@@ -1,4 +1,4 @@
-use crate::commands::config::SecretContent;
+use crate::commands::config::{SecretContent, SecretMetadata};
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
 use aws_smithy_types::error::metadata::ProvideErrorMetadata;
 use base64::Engine as _;
@@ -79,6 +79,48 @@ pub async fn list_secrets(profile: Option<String>) -> Result<Vec<String>, String
 }
 
 #[tauri::command]
+pub async fn list_secrets_with_metadata(
+    profile: Option<String>,
+) -> Result<Vec<SecretMetadata>, String> {
+    let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
+    if let Some(p) = profile {
+        loader = loader.profile_name(p);
+    }
+    let config = loader.load().await;
+    let client = aws_sdk_secretsmanager::Client::new(&config);
+
+    let mut out = Vec::new();
+    let mut next: Option<String> = None;
+    loop {
+        let mut req = client.list_secrets().max_results(100);
+        if let Some(token) = next {
+            req = req.next_token(token);
+        }
+        let resp = req
+            .send()
+            .await
+            .map_err(|e| format!("{}", format_list_error(&e)))?;
+        for s in resp.secret_list() {
+            if let Some(n) = s.name() {
+                // Check if secret has binary by looking at primary_region_secret_string_binary
+                // or we can detect from secret_binary field if available in list response
+                // Note: AWS list_secrets doesn't provide secret_binary directly, so we'll mark as false by default
+                // and update when we fetch the actual secret
+                out.push(SecretMetadata {
+                    name: n.to_string(),
+                    is_binary: false, // Default, will be updated when fetched
+                });
+            }
+        }
+        next = resp.next_token().map(|s| s.to_string());
+        if next.is_none() {
+            break;
+        }
+    }
+    Ok(out)
+}
+
+#[tauri::command]
 pub async fn fetch_secret(
     profile: Option<String>,
     secret_id: String,
@@ -116,6 +158,7 @@ pub async fn create_secret(
     secret_id: String,
     secret_value: String,
     description: Option<String>,
+    is_binary: Option<bool>,
 ) -> Result<String, String> {
     let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
     if let Some(p) = profile {
@@ -123,10 +166,18 @@ pub async fn create_secret(
     }
     let config = loader.load().await;
     let client = aws_sdk_secretsmanager::Client::new(&config);
-    let mut req = client
-        .create_secret()
-        .name(secret_id.clone())
-        .secret_string(secret_value);
+    let mut req = client.create_secret().name(secret_id.clone());
+
+    // If is_binary is true, decode base64 and use secret_binary
+    if is_binary == Some(true) {
+        let binary_data = base64::engine::general_purpose::STANDARD
+            .decode(&secret_value)
+            .map_err(|e| format!("Failed to decode base64: {}", e))?;
+        req = req.secret_binary(binary_data.into());
+    } else {
+        req = req.secret_string(secret_value);
+    }
+
     if let Some(desc) = description {
         req = req.description(desc);
     }
@@ -146,6 +197,7 @@ pub async fn update_secret(
     secret_id: String,
     secret_value: String,
     description: Option<String>,
+    is_binary: Option<bool>,
 ) -> Result<String, String> {
     let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
     if let Some(p) = profile {
@@ -153,10 +205,18 @@ pub async fn update_secret(
     }
     let config = loader.load().await;
     let client = aws_sdk_secretsmanager::Client::new(&config);
-    let mut req = client
-        .update_secret()
-        .secret_id(secret_id)
-        .secret_string(secret_value);
+    let mut req = client.update_secret().secret_id(secret_id.clone());
+
+    // If is_binary is true, decode base64 and use secret_binary
+    if is_binary == Some(true) {
+        let binary_data = base64::engine::general_purpose::STANDARD
+            .decode(&secret_value)
+            .map_err(|e| format!("Failed to decode base64: {}", e))?;
+        req = req.secret_binary(binary_data.into());
+    } else {
+        req = req.secret_string(secret_value);
+    }
+
     if let Some(desc) = description {
         req = req.description(desc);
     }

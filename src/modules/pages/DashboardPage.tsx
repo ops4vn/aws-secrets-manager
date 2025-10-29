@@ -17,7 +17,7 @@ export function DashboardPage() {
   }, [initLoad]);
 
   return (
-    <div className="flex h-[calc(100vh-64px)] min-h-0 overflow-hidden">
+    <div className="flex h-[calc(100vh-40px)] min-h-0 overflow-hidden">
       <aside
         className={`bg-base-100 border-r border-base-300 overflow-y-auto transition-transform duration-300 ease-in-out ${
           leftSidebarOpen

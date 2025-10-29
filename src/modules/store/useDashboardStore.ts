@@ -23,11 +23,21 @@ type State = {
   isCreatingNew: boolean;
   isBinary: boolean;
   allNames: string[];
+  secretMetadata: Record<string, boolean>; // name -> is_binary
+  importedBinary: { name: string; size: number; base64: string } | null;
+
+  // tabs
+  tabs: Array<{ id: string; secretId: string; content: string; isBinary: boolean }>;
+  activeTabId: string | null;
 
   // sso
   ssoValid: boolean | null;
   ssoChecking: boolean;
   _eventsBound: boolean;
+
+  // bookmarks and recent
+  bookmarks: string[];
+  recentSecrets: string[];
 };
 
 type Actions = {
@@ -59,9 +69,21 @@ type Actions = {
   startEdit: () => void;
   startCreateNew: () => void;
   setEditorContent: (v: string) => void;
+  setIsBinary: (v: boolean) => void;
+  setImportedBinary: (p: { name: string; size: number; base64: string } | null) => void;
   save: () => Promise<void>;
   cancelEdit: () => void;
   setSecretId: (v: string) => void;
+
+  // tabs
+  openTab: (secretId: string, content: string, isBinary: boolean) => string;
+  closeTab: (tabId: string) => void;
+  switchTab: (tabId: string) => void;
+
+  // bookmarks and recent
+  addBookmark: (secretId: string) => Promise<void>;
+  removeBookmark: (secretId: string) => Promise<void>;
+  addToRecent: (secretId: string) => Promise<void>;
 };
 
 export const useDashboardStore = create<State & Actions>((set, get) => ({
@@ -81,10 +103,18 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
   isCreatingNew: false,
   isBinary: false,
   allNames: [],
+  secretMetadata: {},
+  importedBinary: null,
+
+  tabs: [],
+  activeTabId: null,
 
   ssoValid: null,
   ssoChecking: false,
   _eventsBound: false,
+
+  bookmarks: [],
+  recentSecrets: [],
 
   pushLog: (msg) =>
     set((st) => {
@@ -103,7 +133,19 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
   setSelectedProfile: (p) => set({ selectedProfile: p }),
   setSearchQuery: (q) => set({ searchQuery: q }),
   setShowSecretsTree: (v) => set({ showSecretsTree: v }),
-  setEditorContent: (v) => set({ editorContent: v }),
+  setEditorContent: (v) => {
+    const st = get();
+    set({ editorContent: v });
+    // Sync với tab active
+    if (st.activeTabId) {
+      const updatedTabs = st.tabs.map(t =>
+        t.id === st.activeTabId ? { ...t, content: v } : t
+      );
+      set({ tabs: updatedTabs });
+    }
+  },
+  setIsBinary: (v) => set({ isBinary: v }),
+  setImportedBinary: (p) => set({ importedBinary: p }),
   setSecretId: (v) => set({ secretId: v }),
 
   initLoad: async () => {
@@ -116,6 +158,15 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
         const cached = await api.loadCachedSecretNames(df);
         if (cached && cached.length > 0) {
           set({ allNames: cached, showSecretsTree: true });
+          // Load metadata if available
+          const cachedMetadata = await api.loadCachedSecretMetadata(df);
+          if (cachedMetadata) {
+            const metadataMap: Record<string, boolean> = {};
+            cachedMetadata.forEach(m => {
+              metadataMap[m.name] = m.is_binary;
+            });
+            set({ secretMetadata: metadataMap });
+          }
           get().pushSuccess(`Loaded ${cached.length} cached secrets`);
         }
       }
@@ -139,6 +190,12 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
       if (st2.selectedProfile ?? st2.defaultProfile) {
         void st2.checkSsoFlow();
       }
+
+      // Load bookmarks and recent secrets
+      const bookmarks = await api.loadBookmarks();
+      if (bookmarks) set({ bookmarks });
+      const recent = await api.loadRecentSecrets();
+      if (recent) set({ recentSecrets: recent });
     } catch (e) {
       get().pushError(`Init error: ${String(e)}`);
     }
@@ -169,6 +226,14 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
       }
     } else {
       st.pushWarn("Force reloading secrets...");
+      // Clear caches (names + metadata) and in-memory state before reloading
+      try {
+        await api.saveCachedSecretNames(profile, []);
+      } catch { }
+      try {
+        await api.saveCachedSecretMetadata(profile, []);
+      } catch { }
+      set({ allNames: [], secretMetadata: {} });
     }
     const names = await api.listSecrets(profile);
     await api.saveCachedSecretNames(profile, names);
@@ -222,25 +287,79 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
   fetchSecretById: async (name: string) => {
     const st = get();
     const profile = st.selectedProfile ?? st.defaultProfile;
+
+    // Kiểm tra xem secret đã có trong tab chưa
+    const existingTab = st.tabs.find(t => t.secretId === name);
+    if (existingTab) {
+      // Tab đã tồn tại, chỉ cần switch sang tab đó
+      st.switchTab(existingTab.id);
+      st.pushInfo(`Switched to existing tab: ${name}`);
+      return;
+    }
+
     st.pushInfo(`Fetching secret: ${name}`);
     try {
       const res: SecretContent = await api.fetchSecret(profile ?? null, name);
+      let content = "";
+      let isBinary = false;
+
       if (res.string) {
         try {
           const parsed = JSON.parse(res.string);
-          set({ editorContent: JSON.stringify(parsed, null, 2), isBinary: false });
+          content = JSON.stringify(parsed, null, 2);
+          isBinary = false;
         } catch {
-          set({ editorContent: res.string, isBinary: false });
+          content = res.string;
+          isBinary = false;
         }
       } else if (res.binary_base64) {
-        set({ editorContent: res.binary_base64, isBinary: true });
+        content = res.binary_base64;
+        isBinary = true;
       } else {
-        set({ editorContent: "", isBinary: false });
+        content = "";
+        isBinary = false;
       }
-      set({ isEditing: false, isCreatingNew: false });
+
+      // Mở tab mới với content đã fetch
+      const tabId = st.openTab(name, content, isBinary);
+      // Sync editor state với tab vừa mở
+      set({
+        activeTabId: tabId,
+        secretId: name,
+        editorContent: content,
+        isBinary: isBinary,
+        isEditing: false,
+        isCreatingNew: false
+      });
+
+      // Update metadata cache (only after actual fetch, not from list)
+      const currentMetadata = st.secretMetadata;
+      if (currentMetadata[name] !== isBinary) {
+        currentMetadata[name] = isBinary;
+        set({ secretMetadata: { ...currentMetadata } });
+        // Save to cache - only update this specific secret's metadata
+        const cachedMetadata = await api.loadCachedSecretMetadata(profile ?? "");
+        let updatedMetadata: Array<{ name: string; is_binary: boolean }>;
+        if (cachedMetadata) {
+          // Check if secret already exists in cache, update it; otherwise add it
+          const existingIndex = cachedMetadata.findIndex(m => m.name === name);
+          if (existingIndex >= 0) {
+            updatedMetadata = cachedMetadata.map(m =>
+              m.name === name ? { name: m.name, is_binary: isBinary } : m
+            );
+          } else {
+            updatedMetadata = [...cachedMetadata, { name, is_binary: isBinary }];
+          }
+        } else {
+          updatedMetadata = [{ name, is_binary: isBinary }];
+        }
+        await api.saveCachedSecretMetadata(profile ?? "", updatedMetadata);
+      }
+
+      // Add to recent secrets
+      await st.addToRecent(name);
       st.pushSuccess("Fetched secret");
     } catch (e) {
-      set({ editorContent: "", isBinary: false, isEditing: false, isCreatingNew: false });
       st.pushError(`Fetch error: ${String(e)}`);
     }
   },
@@ -250,7 +369,7 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
     get().pushInfo("Switched to edit mode");
   },
   startCreateNew: () => {
-    set({ isCreatingNew: true, isEditing: true, editorContent: "", secretId: "" });
+    set({ isCreatingNew: true, isEditing: true, editorContent: "", secretId: "", importedBinary: null, isBinary: false });
     get().pushInfo("Switched to create new secret mode");
   },
   save: async () => {
@@ -258,17 +377,119 @@ export const useDashboardStore = create<State & Actions>((set, get) => ({
     const profile = st.selectedProfile ?? st.defaultProfile;
     st.pushInfo((st.isCreatingNew ? "Creating" : "Updating") + ` secret: ${st.secretId}`);
     if (st.isCreatingNew) {
-      await api.createSecret(profile, st.secretId, st.editorContent);
+      const payload = st.isBinary ? (st.importedBinary?.base64 ?? st.editorContent) : st.editorContent;
+      await api.createSecret(profile, st.secretId, payload, null, st.isBinary);
       st.pushSuccess("Created secret");
     } else {
-      await api.updateSecret(profile, st.secretId, st.editorContent);
+      const payload = st.isBinary ? (st.importedBinary?.base64 ?? st.editorContent) : st.editorContent;
+      await api.updateSecret(profile, st.secretId, payload, null, st.isBinary);
       st.pushSuccess("Updated secret");
     }
-    set({ isEditing: false, isCreatingNew: false });
+
+    // Cập nhật content trong tab sau khi save
+    if (st.activeTabId) {
+      const updatedTabs = st.tabs.map(t =>
+        t.id === st.activeTabId ? { ...t, content: st.editorContent, isBinary: st.isBinary } : t
+      );
+      set({ tabs: updatedTabs });
+    }
+
+    set({ isEditing: false, isCreatingNew: false, importedBinary: null });
   },
   cancelEdit: () => {
-    set({ isEditing: false, isCreatingNew: false });
+    const st = get();
+    // Restore content từ tab khi cancel
+    if (st.activeTabId) {
+      const tab = st.tabs.find(t => t.id === st.activeTabId);
+      if (tab) {
+        set({
+          editorContent: tab.content,
+          isEditing: false,
+          isCreatingNew: false
+        });
+      }
+    } else {
+      set({ isEditing: false, isCreatingNew: false });
+    }
     get().pushInfo("Edit mode cancelled");
+  },
+
+  openTab: (secretId: string, content: string, isBinary: boolean) => {
+    const st = get();
+    const tabId = `tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newTab = { id: tabId, secretId, content, isBinary };
+    set({ tabs: [...st.tabs, newTab], activeTabId: tabId });
+    return tabId;
+  },
+
+  closeTab: (tabId: string) => {
+    const st = get();
+    const newTabs = st.tabs.filter(t => t.id !== tabId);
+    let newActiveTabId: string | null = null;
+
+    if (st.activeTabId === tabId) {
+      // Nếu đang đóng tab active, switch sang tab khác
+      if (newTabs.length > 0) {
+        const closedIndex = st.tabs.findIndex(t => t.id === tabId);
+        if (closedIndex > 0) {
+          newActiveTabId = newTabs[closedIndex - 1].id;
+        } else {
+          newActiveTabId = newTabs[0].id;
+        }
+      }
+    } else {
+      newActiveTabId = st.activeTabId;
+    }
+
+    const activeTab = newTabs.find(t => t.id === newActiveTabId);
+    set({
+      tabs: newTabs,
+      activeTabId: newActiveTabId,
+      secretId: activeTab?.secretId ?? "",
+      editorContent: activeTab?.content ?? "",
+      isBinary: activeTab?.isBinary ?? false,
+      isEditing: false,
+      isCreatingNew: false,
+    });
+  },
+
+  switchTab: (tabId: string) => {
+    const st = get();
+    const tab = st.tabs.find(t => t.id === tabId);
+    if (tab) {
+      set({
+        activeTabId: tabId,
+        secretId: tab.secretId,
+        editorContent: tab.content,
+        isBinary: tab.isBinary,
+        isEditing: false,
+        isCreatingNew: false,
+      });
+    }
+  },
+
+  addBookmark: async (secretId: string) => {
+    const st = get();
+    if (st.bookmarks.includes(secretId)) return;
+    const newBookmarks = [...st.bookmarks, secretId];
+    set({ bookmarks: newBookmarks });
+    await api.saveBookmarks(newBookmarks);
+  },
+
+  removeBookmark: async (secretId: string) => {
+    const st = get();
+    const newBookmarks = st.bookmarks.filter((id) => id !== secretId);
+    set({ bookmarks: newBookmarks });
+    await api.saveBookmarks(newBookmarks);
+  },
+
+  addToRecent: async (secretId: string) => {
+    const st = get();
+    // Remove if exists, then add to front
+    const filtered = st.recentSecrets.filter((id) => id !== secretId);
+    const newRecent = [secretId, ...filtered].slice(0, 20); // Keep last 20
+    set({ recentSecrets: newRecent });
+    await api.saveRecentSecrets(newRecent);
   },
 }));
 

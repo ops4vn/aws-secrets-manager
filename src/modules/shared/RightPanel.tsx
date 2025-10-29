@@ -14,6 +14,7 @@ export function RightPanel() {
     searchQuery,
     setSearchQuery,
     allNames,
+    secretMetadata,
     listSecrets,
     setSecretId,
     fetchSecretById,
@@ -125,6 +126,12 @@ export function RightPanel() {
                 >
                   <span className="text-base-content/70">{name}</span>
                 </button>
+                {secretMetadata[name] === true && (
+                  <span className="badge badge-xs badge-warning">BINARY</span>
+                )}
+                {secretMetadata[name] === false && (
+                  <span className="badge badge-xs badge-info">JSON</span>
+                )}
                 <button
                   className="btn btn-ghost btn-xs"
                   onClick={() => handleSelect(name)}
@@ -144,6 +151,7 @@ export function RightPanel() {
                 key={node.name + node.full}
                 node={node}
                 onSelect={handleSelect}
+                secretMetadata={secretMetadata}
               />
             ))}
           </ul>
@@ -178,21 +186,29 @@ function groupByTree(names: string[]): Node[] {
 function TreeNode({
   node,
   onSelect,
+  secretMetadata,
 }: {
   node: Node;
   onSelect: (name: string) => void;
+  secretMetadata: Record<string, boolean>;
 }) {
   if (!node.children || node.children.length === 0) {
     return (
       <li className="w-full">
         <button
           onClick={() => onSelect(node.full)}
-          className="hover:bg-base-200/60 rounded w-full text-left py-2 px-2"
+          className="hover:bg-base-200/60 rounded w-full text-left py-2 px-2 flex items-center gap-2"
         >
           <FileText className="inline h-3.5 w-3.5 mr-2 align-top" />
-          <span className="text-base-content/70 whitespace-normal break-words align-top">
+          <span className="text-base-content/70 whitespace-normal break-words align-top flex-1">
             {node.name}
           </span>
+          {secretMetadata[node.full] === true && (
+            <span className="badge badge-xs badge-warning">BINARY</span>
+          )}
+          {secretMetadata[node.full] === false && (
+            <span className="badge badge-xs badge-info">JSON</span>
+          )}
         </button>
       </li>
     );
@@ -208,7 +224,12 @@ function TreeNode({
         </summary>
         <ul className="pl-4">
           {node.children.map((c) => (
-            <TreeNode key={c.name + c.full} node={c} onSelect={onSelect} />
+            <TreeNode
+              key={c.name + c.full}
+              node={c}
+              onSelect={onSelect}
+              secretMetadata={secretMetadata}
+            />
           ))}
         </ul>
       </details>

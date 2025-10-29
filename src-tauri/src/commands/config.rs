@@ -2,6 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SecretMetadata {
+    pub name: String,
+    pub is_binary: bool,
+}
+
 // ==== Types shared to FE ====
 #[derive(Serialize, Deserialize)]
 pub struct SecretContent {
@@ -75,9 +81,29 @@ pub fn save_theme(theme: &str) -> bool {
 
 #[tauri::command]
 pub fn load_cached_secret_names(profile: &str) -> Option<Vec<String>> {
+    // Backward compatibility: try loading metadata first, fallback to old format
+    if let Some(path) = cache_path(profile) {
+        if let Ok(data) = fs::read_to_string(&path) {
+            // Try metadata format first
+            if let Ok(metadata) = serde_json::from_str::<Vec<SecretMetadata>>(&data) {
+                return Some(metadata.iter().map(|m| m.name.clone()).collect());
+            }
+            // Fallback to old format
+            if let Ok(names) = serde_json::from_str::<Vec<String>>(&data) {
+                return Some(names);
+            }
+        }
+    }
+    None
+}
+
+#[tauri::command]
+pub fn load_cached_secret_metadata(profile: &str) -> Option<Vec<SecretMetadata>> {
     let path = cache_path(profile)?;
     let data = fs::read_to_string(path).ok()?;
-    serde_json::from_str::<Vec<String>>(&data).ok()
+    // Only load metadata format (with actual fetch data)
+    // Do NOT convert old format to metadata - we only want metadata from actual fetches
+    serde_json::from_str::<Vec<SecretMetadata>>(&data).ok()
 }
 
 #[tauri::command]
@@ -85,6 +111,65 @@ pub fn save_cached_secret_names(profile: &str, names: Vec<String>) -> bool {
     if let Some(path) = cache_path(profile) {
         let _ = fs::create_dir_all(path.parent().unwrap());
         return fs::write(path, serde_json::to_vec_pretty(&names).unwrap_or_default()).is_ok();
+    }
+    false
+}
+
+#[tauri::command]
+pub fn save_cached_secret_metadata(profile: &str, metadata: Vec<SecretMetadata>) -> bool {
+    if let Some(path) = cache_path(profile) {
+        let _ = fs::create_dir_all(path.parent().unwrap());
+        return fs::write(
+            path,
+            serde_json::to_vec_pretty(&metadata).unwrap_or_default(),
+        )
+        .is_ok();
+    }
+    false
+}
+
+fn bookmarks_path() -> Option<PathBuf> {
+    let dir = dirs::config_dir()?;
+    Some(dir.join("secmanager").join("bookmarks.json"))
+}
+
+fn recent_secrets_path() -> Option<PathBuf> {
+    let dir = dirs::config_dir()?;
+    Some(dir.join("secmanager").join("recent_secrets.json"))
+}
+
+#[tauri::command]
+pub fn load_bookmarks() -> Option<Vec<String>> {
+    let path = bookmarks_path()?;
+    let data = fs::read_to_string(path).ok()?;
+    serde_json::from_str::<Vec<String>>(&data).ok()
+}
+
+#[tauri::command]
+pub fn save_bookmarks(bookmarks: Vec<String>) -> bool {
+    if let Some(path) = bookmarks_path() {
+        let _ = fs::create_dir_all(path.parent().unwrap());
+        return fs::write(
+            path,
+            serde_json::to_vec_pretty(&bookmarks).unwrap_or_default(),
+        )
+        .is_ok();
+    }
+    false
+}
+
+#[tauri::command]
+pub fn load_recent_secrets() -> Option<Vec<String>> {
+    let path = recent_secrets_path()?;
+    let data = fs::read_to_string(path).ok()?;
+    serde_json::from_str::<Vec<String>>(&data).ok()
+}
+
+#[tauri::command]
+pub fn save_recent_secrets(recent: Vec<String>) -> bool {
+    if let Some(path) = recent_secrets_path() {
+        let _ = fs::create_dir_all(path.parent().unwrap());
+        return fs::write(path, serde_json::to_vec_pretty(&recent).unwrap_or_default()).is_ok();
     }
     false
 }
