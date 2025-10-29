@@ -1,4 +1,5 @@
 import { BookOpen, Edit3, Plus } from "lucide-react";
+import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
 type Props = {
   secretId: string;
   setSecretId: (v: string) => void;
@@ -80,6 +81,7 @@ export function TopBar({
         >
           <Plus className="h-4 w-4 mr-1" /> New Secret
         </button>
+        <KeyboardShortcutsHelp />
       </div>
     </div>
   );

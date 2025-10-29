@@ -35,3 +35,6 @@ aws-types = { version = "1" }
 aws-runtime = { version = "1" }
 aws-smithy-runtime-api = { version = "1" }
 aws-smithy-types = { version = "1" }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-global-shortcut = "2"
