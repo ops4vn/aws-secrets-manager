@@ -22,6 +22,8 @@ export function DashboardPage() {
   const [allNames, setAllNames] = useState<string[]>([]);
 
   const [profiles, setProfiles] = useState<string[]>([]);
+  const [ssoValid, setSsoValid] = useState<boolean | null>(null);
+  const [ssoChecking, setSsoChecking] = useState<boolean>(false);
 
   const pushLog = (msg: string) =>
     setLogs((prev) => [...prev, msg].slice(-500));
@@ -50,10 +52,12 @@ export function DashboardPage() {
 
   return (
     <div className="flex h-[calc(100vh-64px)] min-h-0">
-      <aside className="w-72 bg-base-100 border-r border-base-300 p-4 overflow-y-auto">
+      <aside className="w-96 bg-base-100 border-r border-base-300 p-4 overflow-y-auto">
         <SidebarProfiles
           profiles={profiles}
           selectedProfile={selectedProfile ?? defaultProfile ?? "default"}
+          ssoValid={ssoValid ?? undefined}
+          ssoChecking={ssoChecking}
           onSelect={(p) => setSelectedProfile(p)}
           onSetDefault={async () => {
             await api.saveDefaultProfile(selectedProfile ?? "default");
@@ -107,10 +111,13 @@ export function DashboardPage() {
               pushLog("No profile selected");
               return;
             }
+            setSsoChecking(true);
             setStatus("Checking SSO...");
             pushLog("Checking SSO...");
             const ok = await api.checkSso(p);
             if (ok) {
+              setSsoValid(true);
+              setSsoChecking(false);
               setStatus("SSO valid");
               pushLog("SSO valid");
               return;
@@ -127,6 +134,8 @@ export function DashboardPage() {
                 break;
               }
             }
+            setSsoValid(valid);
+            setSsoChecking(false);
             setStatus(valid ? "SSO valid" : "SSO still invalid after waiting");
             pushLog(valid ? "SSO valid" : "SSO still invalid after waiting");
           }}
