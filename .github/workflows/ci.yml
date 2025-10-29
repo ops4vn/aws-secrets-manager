@@ -21,19 +21,13 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
-      - name: Cache node modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.npm
-          key: ${{ runner.os }}-node20-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node20-
+      - name: Install bun
+        run: npm -g add bun
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: bun install
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
