@@ -65,7 +65,7 @@ pub async fn list_secrets(profile: Option<String>) -> Result<Vec<String>, String
         let resp = req
             .send()
             .await
-            .map_err(|e| format!("{}", format_list_error(&e)))?;
+            .map_err(|e| format!("{}", format_list_error(&e).to_string()))?;
         for s in resp.secret_list() {
             if let Some(n) = s.name() {
                 out.push(n.to_string());
@@ -100,7 +100,7 @@ pub async fn list_secrets_with_metadata(
         let resp = req
             .send()
             .await
-            .map_err(|e| format!("{}", format_list_error(&e)))?;
+            .map_err(|e| format!("{}", format_list_error(&e).to_string()))?;
         for s in resp.secret_list() {
             if let Some(n) = s.name() {
                 // Check if secret has binary by looking at primary_region_secret_string_binary
@@ -137,7 +137,7 @@ pub async fn fetch_secret(
         .secret_id(&secret_id)
         .send()
         .await
-        .map_err(|e| format!("{}", format_get_error(&e, &secret_id)))?;
+        .map_err(|e| format!("{}", format_get_error(&e, &secret_id).to_string()))?;
     if let Some(s) = resp.secret_string {
         return Ok(SecretContent {
             string: Some(s),
@@ -221,7 +221,7 @@ pub async fn fetch_secret_async(
                 );
             }
             Err(e) => {
-                let error_msg = format!("{}", format_get_error(&e, &secret_id_clone));
+                let error_msg = format!("{}", format_get_error(&e, &secret_id_clone).to_string());
                 let _ = app.emit(
                     "secret_fetch_error",
                     SecretFetchError {
@@ -268,7 +268,7 @@ pub async fn create_secret(
     let resp = req
         .send()
         .await
-        .map_err(|e| format!("{}", format_create_error(&e, &secret_id)))?;
+        .map_err(|e| format!("{}", format_create_error(&e, &secret_id).to_string()))?;
     Ok(format!(
         "Created secret: {}",
         resp.name().unwrap_or("unknown")
@@ -307,7 +307,7 @@ pub async fn update_secret(
     let resp = req
         .send()
         .await
-        .map_err(|e| format!("{}", format_update_error(&e)))?;
+        .map_err(|e| format!("{}", format_update_error(&e).to_string()))?;
     Ok(format!(
         "Updated secret: {}",
         resp.name().unwrap_or("unknown")
