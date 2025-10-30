@@ -1,12 +1,26 @@
 name: Build SecManager (Tauri)
 
 on:
-  push:
-    branches: [main, master]
-    tags: ["v*"]
-  pull_request:
-    branches: [main, master]
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: "Select platforms to build"
+        required: true
+        default: "macos,windows,linux"
+        type: choice
+        options:
+          - macos
+          - windows
+          - linux
+          - macos,windows
+          - macos,linux
+          - windows,linux
+          - macos,windows,linux
+      branch:
+        description: "Branch to build"
+        required: true
+        default: "main"
+        type: string
 
 env:
   CARGO_TERM_COLOR: always
@@ -32,6 +46,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

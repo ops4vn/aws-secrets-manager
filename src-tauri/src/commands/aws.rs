@@ -62,10 +62,7 @@ pub async fn list_secrets(profile: Option<String>) -> Result<Vec<String>, String
         if let Some(token) = next {
             req = req.next_token(token);
         }
-        let resp = req
-            .send()
-            .await
-            .map_err(|e| format!("{}", format_list_error(&e).to_string()))?;
+        let resp = req.send().await.map_err(|e| format_list_error(&e))?;
         for s in resp.secret_list() {
             if let Some(n) = s.name() {
                 out.push(n.to_string());
@@ -97,10 +94,7 @@ pub async fn list_secrets_with_metadata(
         if let Some(token) = next {
             req = req.next_token(token);
         }
-        let resp = req
-            .send()
-            .await
-            .map_err(|e| format!("{}", format_list_error(&e).to_string()))?;
+        let resp = req.send().await.map_err(|e| format_list_error(&e))?;
         for s in resp.secret_list() {
             if let Some(n) = s.name() {
                 // Check if secret has binary by looking at primary_region_secret_string_binary
@@ -137,7 +131,7 @@ pub async fn fetch_secret(
         .secret_id(&secret_id)
         .send()
         .await
-        .map_err(|e| format!("{}", format_get_error(&e, &secret_id).to_string()))?;
+        .map_err(|e| format_get_error(&e, &secret_id))?;
     if let Some(s) = resp.secret_string {
         return Ok(SecretContent {
             string: Some(s),
@@ -221,7 +215,7 @@ pub async fn fetch_secret_async(
                 );
             }
             Err(e) => {
-                let error_msg = format!("{}", format_get_error(&e, &secret_id_clone).to_string());
+                let error_msg = format_get_error(&e, &secret_id_clone);
                 let _ = app.emit(
                     "secret_fetch_error",
                     SecretFetchError {
@@ -268,7 +262,7 @@ pub async fn create_secret(
     let resp = req
         .send()
         .await
-        .map_err(|e| format!("{}", format_create_error(&e, &secret_id).to_string()))?;
+        .map_err(|e| format_create_error(&e, &secret_id))?;
     Ok(format!(
         "Created secret: {}",
         resp.name().unwrap_or("unknown")
@@ -304,10 +298,7 @@ pub async fn update_secret(
     if let Some(desc) = description {
         req = req.description(desc);
     }
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| format!("{}", format_update_error(&e).to_string()))?;
+    let resp = req.send().await.map_err(|e| format_update_error(&e))?;
     Ok(format!(
         "Updated secret: {}",
         resp.name().unwrap_or("unknown")
