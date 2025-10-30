@@ -1,88 +1,9 @@
 mod commands;
+mod helper;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // ===== Custom App Menu (About / Support / Contact) =====
-    let app_name = "Secrets Manager";
-
     tauri::Builder::default()
-        .setup(move |app| {
-            use tauri::menu::{Menu, MenuItem, Submenu};
-            let about = MenuItem::with_id(
-                app,
-                "about_app",
-                format!("About {app_name}"),
-                true,
-                None::<&str>,
-            )?;
-            let support = MenuItem::with_id(app, "support", "Support", true, None::<&str>)?;
-            let contact = MenuItem::with_id(app, "contact", "Contact", true, None::<&str>)?;
-
-            let submenu = Submenu::new(app, app_name, true)?;
-            submenu.append(&about)?;
-            submenu.append(&support)?;
-            submenu.append(&contact)?;
-
-            let menu = Menu::new(app)?;
-            menu.append(&submenu)?;
-            app.set_menu(menu)?;
-            Ok(())
-        })
-        .on_menu_event(|_, event| {
-            match event.id().as_ref() {
-                "about_app" => {
-                    let version = env!("CARGO_PKG_VERSION");
-                    let author = "Le Dang Dung";
-                    let text = format!(
-                        "{} v{}\nAuthor: {}\nSupport: https://fb.com/ledungcodedao\nContact: ledung.itsme@gmail.com",
-                        "Secrets Manager", version, author
-                    );
-                    #[cfg(target_os = "macos")]
-                    {
-                        let _ = std::process::Command::new("osascript")
-                            .args([
-                                "-e",
-                                &format!(
-                                    "display dialog \"{}\" with title \"About Secrets Manager\" buttons {{\"OK\"}} default button 1",
-                                    text.replace('"', "\\\"")
-                                ),
-                            ])
-                            .spawn();
-                    }
-                }
-                "support" => {
-                    let url = "https://fb.com/ledungcodedao";
-                    #[cfg(target_os = "macos")]
-                    {
-                        let _ = std::process::Command::new("open").arg(url).spawn();
-                    }
-                    #[cfg(target_os = "linux")]
-                    {
-                        let _ = std::process::Command::new("xdg-open").arg(url).spawn();
-                    }
-                    #[cfg(target_os = "windows")]
-                    {
-                        let _ = std::process::Command::new("cmd").args(["/C", "start", url]).spawn();
-                    }
-                }
-                "contact" => {
-                    let url = "mailto:ledung.itsme@gmail.com";
-                    #[cfg(target_os = "macos")]
-                    {
-                        let _ = std::process::Command::new("open").arg(url).spawn();
-                    }
-                    #[cfg(target_os = "linux")]
-                    {
-                        let _ = std::process::Command::new("xdg-open").arg(url).spawn();
-                    }
-                    #[cfg(target_os = "windows")]
-                    {
-                        let _ = std::process::Command::new("cmd").args(["/C", "start", url]).spawn();
-                    }
-                }
-                _ => {}
-            }
-        })
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

@@ -1,4 +1,5 @@
 use crate::commands::config::{SecretContent, SecretMetadata};
+use crate::helper::aws_helper;
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
 use aws_smithy_types::error::metadata::ProvideErrorMetadata;
 use base64::Engine as _;
@@ -331,7 +332,9 @@ pub async fn check_sso(profile: String) -> Result<bool, String> {
 
 #[tauri::command]
 pub async fn trigger_sso_login(app: tauri::AppHandle, profile: String) -> Result<bool, String> {
-    std::process::Command::new("aws")
+    let aws_cli_path =
+        aws_helper::find_aws_cli_path().map_err(|e| format!("Error finding aws cli: {e}"))?;
+    std::process::Command::new(aws_cli_path)
         .args(["sso", "login", "--profile", &profile])
         .spawn()
         .map_err(|e| format!("spawn error: {e}"))?;
