@@ -250,7 +250,7 @@ pub async fn create_secret(
     if is_binary == Some(true) {
         let binary_data = base64::engine::general_purpose::STANDARD
             .decode(&secret_value)
-            .map_err(|e| format!("Failed to decode base64: {}", e))?;
+            .map_err(|e| format!("Failed to decode base64: {e}"))?;
         req = req.secret_binary(binary_data.into());
     } else {
         req = req.secret_string(secret_value);
@@ -289,7 +289,7 @@ pub async fn update_secret(
     if is_binary == Some(true) {
         let binary_data = base64::engine::general_purpose::STANDARD
             .decode(&secret_value)
-            .map_err(|e| format!("Failed to decode base64: {}", e))?;
+            .map_err(|e| format!("Failed to decode base64: {e}"))?;
         req = req.secret_binary(binary_data.into());
     } else {
         req = req.secret_string(secret_value);

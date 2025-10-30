@@ -11,7 +11,7 @@ pub fn run() {
             let about = MenuItem::with_id(
                 app,
                 "about_app",
-                format!("About {}", app_name),
+                format!("About {app_name}"),
                 true,
                 None::<&str>,
             )?;

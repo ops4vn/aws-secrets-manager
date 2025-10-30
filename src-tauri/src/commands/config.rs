@@ -25,7 +25,7 @@ fn cache_path(profile: &str) -> Option<PathBuf> {
     let dir = dirs::config_dir()?;
     Some(
         dir.join("secmanager")
-            .join(format!("secrets_{}.json", profile)),
+            .join(format!("secrets_{profile}.json")),
     )
 }
 
@@ -33,7 +33,7 @@ fn metadata_cache_path(profile: &str) -> Option<PathBuf> {
     let dir = dirs::config_dir()?;
     Some(
         dir.join("secmanager")
-            .join(format!("secrets_meta_{}.json", profile)),
+            .join(format!("secrets_meta_{profile}.json")),
     )
 }
 
