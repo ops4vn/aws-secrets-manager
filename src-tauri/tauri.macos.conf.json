@@ -1,0 +1,16 @@
+{
+  "identifier": "com.zed.secrets-manager",
+  "app": {
+    "windows": [
+      {
+        "title": "",
+        "width": 1200,
+        "height": 900,
+        "maximized": true,
+        "visible": false,
+        "titleBarStyle": "Overlay",
+        "trafficLightPosition": { "x": 18, "y": 18 }
+      }
+    ]
+  }
+}

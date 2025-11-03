@@ -47,6 +47,7 @@ export function EditorPanel() {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const keyPickerRef = useRef<HTMLDivElement | null>(null);
   const keyPickerButtonRef = useRef<HTMLButtonElement | null>(null);
+  const tabsContainerRef = useRef<HTMLDivElement | null>(null);
   const [isDarkTheme, setIsDarkTheme] = useState<boolean>(
     typeof document !== "undefined" &&
       document.documentElement?.dataset?.theme === "dark"
@@ -89,6 +90,26 @@ export function EditorPanel() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showKeyPicker]);
+
+  // Auto scroll tới tab đang active khi thay đổi
+  useEffect(() => {
+    if (!tabsContainerRef.current || !activeTabId) return;
+    const container = tabsContainerRef.current;
+    const activeEl = container.querySelector(
+      `[data-tab-id="${activeTabId}"]`
+    ) as HTMLElement | null;
+    if (!activeEl) return;
+
+    const elLeft = activeEl.offsetLeft;
+    const elRight = elLeft + activeEl.offsetWidth;
+    const cLeft = container.scrollLeft;
+    const cRight = cLeft + container.clientWidth;
+
+    // Chỉ scroll nếu phần tử nằm ngoài vùng nhìn thấy
+    if (elLeft < cLeft || elRight > cRight) {
+      activeEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  }, [activeTabId, tabs.length]);
 
   const viewText = useMemo(() => {
     if (isEditing) return null as string | null;
@@ -449,10 +470,11 @@ export function EditorPanel() {
 
       {/* Tabs */}
       {tabs.length > 0 && (
-        <div className="flex items-center gap-1 mb-2 overflow-x-auto border-b border-base-300 pb-1">
+        <div ref={tabsContainerRef} className="flex items-center gap-1 mb-2 overflow-x-auto border-b border-base-300 pb-1">
           {tabs.map((tab) => (
             <div
               key={tab.id}
+              data-tab-id={tab.id}
               className={`flex items-center gap-1 px-3 py-1 rounded-t cursor-pointer border-b-2 transition-colors ${
                 tab.id === activeTabId
                   ? "bg-base-200 border-primary text-primary"

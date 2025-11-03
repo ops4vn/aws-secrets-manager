@@ -1,11 +1,24 @@
 import { Outlet } from "react-router-dom";
-import { List, Moon, Sun } from "lucide-react";
+import { Menu, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../services/tauriApi";
 import { useUiStore } from "../store/useUiStore";
+import { platform } from "@tauri-apps/plugin-os";
 
 export function MainLayout() {
   const [theme, setTheme] = useState<string | null>(null);
+
+  const toggleTheme = async (checked: boolean) => {
+    const next = checked ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", next);
+    setTheme(next);
+    await api.saveTheme(next);
+  };
+
+  const isMac = platform() === "macos";
+
+  console.log(isMac);
+
   useEffect(() => {
     (async () => {
       const t = await api.loadTheme();
@@ -15,17 +28,12 @@ export function MainLayout() {
       }
     })();
   }, []);
-  const toggleTheme = async (checked: boolean) => {
-    const next = checked ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", next);
-    setTheme(next);
-    await api.saveTheme(next);
-  };
+
   return (
     <div className="flex flex-col min-h-screen bg-base-200 text-base-content">
       <div className="navbar bg-base-100 border-b border-base-300 px-2 h-10 min-h-10">
         <div
-          className="flex-1 cursor-grab flex items-center gap-1"
+          className={`flex-1 cursor-grab flex items-center gap-1 ${isMac ? "ms-20" : ""} select-none`}
           data-tauri-drag-region
         >
           <SidebarToggleButton />
@@ -70,7 +78,7 @@ function SidebarToggleButton() {
       title={leftSidebarOpen ? "Hide sidebar" : "Show sidebar"}
       aria-label="Toggle sidebar"
     >
-      <List className="h-4 w-4" />
+      <Menu className="h-4 w-4" />
     </button>
   );
 }
