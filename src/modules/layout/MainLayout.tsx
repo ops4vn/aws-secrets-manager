@@ -38,7 +38,7 @@ export function MainLayout() {
         >
           <SidebarToggleButton />
           <div className="font-semibold text-sm px-2 py-1 h-auto min-h-0">
-            <span className="text-primary">Sec</span>
+            <span className="text-primary">Secrets&nbsp;</span>
             <span className="text-base-content">Manager</span>
           </div>
         </div>

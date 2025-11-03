@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { listen } from "@tauri-apps/api/event";
 import { api, SecretContent } from "../services/tauriApi";
+import { EditorTab } from "../shared/types";
 
 type State = {
   // profiles
@@ -34,7 +35,7 @@ type State = {
   fetchedBinaryTooLarge: { name: string; size: number } | null;
 
   // tabs
-  tabs: Array<{ id: string; secretId: string; content: string; isBinary: boolean; isTooLarge?: boolean; binarySize?: number }>;
+  tabs: EditorTab[];
   activeTabId: string | null;
 
   // sso
