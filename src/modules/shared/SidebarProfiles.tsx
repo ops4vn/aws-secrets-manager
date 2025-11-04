@@ -18,26 +18,20 @@ import { useSecretsListStore } from "../store/useSecretsListStore";
 import { useBookmarksStore } from "../store/useBookmarksStore";
 import { useEditorStore } from "../store/useEditorStore";
 
-// Helper to get display name for secret (last segment or unique part)
 function getSecretDisplayName(secretId: string, allSecrets: string[]): string {
-  // If it's a path, use last segment
   if (secretId.includes("/")) {
     const parts = secretId.split("/");
     const lastSegment = parts[parts.length - 1];
 
-    // Check if there are multiple secrets with same last segment
     const sameLastSegment = allSecrets.filter(
       (id) => id.split("/").pop() === lastSegment
     );
 
-    // If multiple secrets share last segment, show more context
     if (sameLastSegment.length > 1) {
-      // Try to find unique suffix
       const commonPrefix = findCommonPrefix(sameLastSegment);
       if (commonPrefix && secretId.startsWith(commonPrefix)) {
         return secretId.slice(commonPrefix.length).replace(/^\//, "");
       }
-      // Show last 2 segments if needed
       if (parts.length >= 2) {
         return `${parts[parts.length - 2]}/${lastSegment}`;
       }
@@ -48,7 +42,6 @@ function getSecretDisplayName(secretId: string, allSecrets: string[]): string {
   return secretId;
 }
 
-// Helper to find common prefix
 function findCommonPrefix(strings: string[]): string | null {
   if (strings.length === 0) return null;
   let prefix = strings[0];
@@ -58,7 +51,6 @@ function findCommonPrefix(strings: string[]): string | null {
     }
     if (prefix.length === 0) return null;
   }
-  // Ensure prefix ends at a path boundary
   const lastSlash = prefix.lastIndexOf("/");
   if (lastSlash > 0) {
     return prefix.substring(0, lastSlash + 1);
@@ -83,7 +75,8 @@ export function SidebarProfiles() {
     triggerSsoLogin,
   } = useProfileStore();
   const { listSecrets, updateSecretMetadata } = useSecretsListStore();
-  const { bookmarks, recentSecrets, addBookmark, removeBookmark, addToRecent } = useBookmarksStore();
+  const { bookmarks, recentSecrets, addBookmark, removeBookmark, addToRecent } =
+    useBookmarksStore();
   const { fetchSecretById } = useEditorStore();
 
   return (
@@ -120,7 +113,10 @@ export function SidebarProfiles() {
                   </option>
                 ))}
               </select>
-              <button className="btn btn-primary btn-sm" onClick={() => saveDefault(pushSuccess)}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => saveDefault(pushSuccess)}
+              >
                 <Star className="h-4 w-4 mr-1" /> Set default
               </button>
             </div>
@@ -169,7 +165,9 @@ export function SidebarProfiles() {
           )}
           <button
             className="btn btn-sm bg-[#FF9900] hover:bg-[#e58a00] text-white border-none"
-            onClick={() => checkSsoFlow(pushWarn, pushInfo, pushSuccess, pushError)}
+            onClick={() =>
+              checkSsoFlow(pushWarn, pushInfo, pushSuccess, pushError)
+            }
             disabled={!!ssoChecking}
             title={
               ssoChecking
@@ -243,7 +241,16 @@ export function SidebarProfiles() {
                     className="flex-1 text-left text-xs truncate hover:text-primary"
                     onClick={() => {
                       const profile = selectedProfile ?? defaultProfile;
-                      fetchSecretById(secretId, profile, pushInfo, pushError, pushSuccess, (sid, isBin) => updateSecretMetadata(profile, sid, isBin), addToRecent);
+                      fetchSecretById(
+                        secretId,
+                        profile,
+                        pushInfo,
+                        pushError,
+                        pushSuccess,
+                        (sid, isBin) =>
+                          updateSecretMetadata(profile, sid, isBin),
+                        addToRecent
+                      );
                     }}
                     title={secretId}
                   >
@@ -297,9 +304,18 @@ export function SidebarProfiles() {
                     <button
                       className="flex-1 text-left text-xs truncate hover:text-primary"
                       onClick={() => {
-                      const profile = selectedProfile ?? defaultProfile;
-                      fetchSecretById(secretId, profile, pushInfo, pushError, pushSuccess, (sid, isBin) => updateSecretMetadata(profile, sid, isBin), addToRecent);
-                    }}
+                        const profile = selectedProfile ?? defaultProfile;
+                        fetchSecretById(
+                          secretId,
+                          profile,
+                          pushInfo,
+                          pushError,
+                          pushSuccess,
+                          (sid, isBin) =>
+                            updateSecretMetadata(profile, sid, isBin),
+                          addToRecent
+                        );
+                      }}
                       title={secretId}
                     >
                       {getSecretDisplayName(secretId, recentSecrets)}
