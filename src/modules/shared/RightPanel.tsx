@@ -3,8 +3,8 @@ import {
   Search,
   Folder,
   XCircle,
-  BookOpen,
   RefreshCcw,
+  LockOpen,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLogsStore } from "../store/useLogsStore";
@@ -25,6 +25,7 @@ export function RightPanel() {
   } = useSecretsListStore();
   const { fetchSecretById, setSecretId } = useEditorStore();
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [localQuery, setLocalQuery] = useState<string>(searchQuery);
   const [showSearch, setShowSearch] = useState<boolean>(false);
   const trimmed = useMemo(() => localQuery.trim(), [localQuery]);
@@ -41,6 +42,20 @@ export function RightPanel() {
   const results = trimmed
     ? allNames.filter((n) => n.toLowerCase().includes(trimmed.toLowerCase()))
     : [];
+
+  const handleSetSearchShow = useCallback(() => {
+    setShowSearch((s) => {
+      const newState = !s;
+      if (newState) {
+        setTimeout(() => {
+          if (searchInputRef.current) {
+            searchInputRef.current.focus();
+          }
+        }, 100);
+      }
+      return newState;
+    });
+  }, []);
 
   const handleSelect = useCallback(
     async (name: string) => {
@@ -70,14 +85,16 @@ export function RightPanel() {
 
   return (
     <div className="flex flex-col gap-3" ref={panelRef}>
-      <div className="sticky top-0 z-20 px-4 bg-base-100/95 supports-backdrop-filter:bg-base-100/80 backdrop-blur border-b border-base-300 py-2">
+      <div className="sticky top-0 z-20 bg-base-100/95 supports-backdrop-filter:bg-base-100/80 backdrop-blur border-base-300 py-2">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Secrets</h2>
+          <h2 className="text-primary text-md font-semibold">Secrets</h2>
           <div className="flex items-center gap-1">
             <button
-              className="btn btn-ghost btn-xs"
+              className={`btn btn-ghost btn-xs ${
+                showSearch ? "btn-active" : ""
+              }`}
               title="Search"
-              onClick={() => setShowSearch((s) => !s)}
+              onClick={() => handleSetSearchShow()}
             >
               <Search className="h-4 w-4" />
             </button>
@@ -113,10 +130,12 @@ export function RightPanel() {
           <div className="flex items-center gap-2 mt-2">
             <div className="join w-full">
               <input
-                className="input input-bordered join-item input-sm w-full"
+                className="input focus:outline-none focus:border-primary join-item input-sm w-full"
                 placeholder="Search..."
                 value={localQuery}
                 onChange={(e) => setLocalQuery(e.target.value)}
+                ref={searchInputRef}
+                autoComplete="false"
               />
               {trimmed && (
                 <button
@@ -130,14 +149,14 @@ export function RightPanel() {
             </div>
           </div>
         )}
-
-        <div className="divider my-1"></div>
       </div>
 
       {trimmed ? (
         <div className="space-y-1">
-          <div className="opacity-70 text-sm">
-            📄 {results.length} result(s)
+          <div className="text-sm flex items-center justify-start gap-2">
+            <FileText className="inline h-3.5 w-3.5" />{" "}
+            <span className="text-primary font-semibold">{results.length}</span>{" "}
+            result(s)
           </div>
           <div>
             {results.map((name) => (
@@ -150,7 +169,7 @@ export function RightPanel() {
                   className="text-left text-base-content hover:text-primary w-full whitespace-normal wrap-break-word"
                   onClick={() => handleSelect(name)}
                 >
-                  <span className="text-base-content/70">{name}</span>
+                  <span className="text-sm text-base-content/80">{name}</span>
                 </button>
                 {secretMetadata[name] === true && (
                   <span className="badge badge-xs badge-warning">BINARY</span>
@@ -162,7 +181,7 @@ export function RightPanel() {
                   className="btn btn-ghost btn-xs"
                   onClick={() => handleSelect(name)}
                 >
-                  <BookOpen className="h-3.5 w-3.5 mr-1" /> Get
+                  <LockOpen className="h-3.5 w-3.5 mr-1" /> Get
                 </button>
               </div>
             ))}
@@ -170,7 +189,6 @@ export function RightPanel() {
         </div>
       ) : (
         <div>
-          <div className="opacity-70 text-sm mb-2">Tree view</div>
           <ul className="menu bg-base-100 rounded-box w-full">
             {groupByTree(allNames).map((node) => (
               <TreeNode
@@ -223,9 +241,9 @@ function TreeNode({
       <li className="w-full">
         <button
           onClick={() => onSelect(node.full)}
-          className="hover:bg-base-200/60 rounded w-full text-left py-2 px-2 flex items-center gap-2"
+          className="hover:bg-base-200/60 rounded w-full text-left p-1.5 flex items-center"
         >
-          <FileText className="inline h-3.5 w-3.5 mr-2 align-top" />
+          <FileText className="inline h-3.5 w-3.5 align-top" />
           <span className="text-base-content/70 whitespace-normal wrap-break-word align-top flex-1">
             {node.name}
           </span>
@@ -242,7 +260,7 @@ function TreeNode({
   return (
     <li className="w-full">
       <details className="group">
-        <summary className="w-full py-2 px-2 flex items-center gap-2 cursor-pointer select-none">
+        <summary className="w-full p-2 flex items-center gap-2 cursor-pointer select-none">
           <Folder className="h-4 w-4" />
           <span className="text-base-content/80 whitespace-normal wrap-break-word">
             {node.name}

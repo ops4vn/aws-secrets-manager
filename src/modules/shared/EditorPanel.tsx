@@ -70,7 +70,7 @@ export function EditorPanel() {
 
   useEffect(() => {
     const profile = selectedProfile ?? defaultProfile;
-    
+
     bindEvents(
       () => {},
       pushError,
@@ -78,7 +78,15 @@ export function EditorPanel() {
       (secretId, isBinary) => updateSecretMetadata(profile, secretId, isBinary),
       addToRecent
     );
-  }, [bindEvents, pushError, pushSuccess, updateSecretMetadata, addToRecent, selectedProfile, defaultProfile]);
+  }, [
+    bindEvents,
+    pushError,
+    pushSuccess,
+    updateSecretMetadata,
+    addToRecent,
+    selectedProfile,
+    defaultProfile,
+  ]);
 
   const viewText = useMemo(() => {
     if (isEditing) return null as string | null;
@@ -240,7 +248,8 @@ export function EditorPanel() {
           const buf = await file.arrayBuffer();
           const bytes = new Uint8Array(buf);
           let binary = "";
-          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+          for (let i = 0; i < bytes.length; i++)
+            binary += String.fromCharCode(bytes[i]);
           importContent = btoa(binary);
           isBin = true;
         }
@@ -248,7 +257,8 @@ export function EditorPanel() {
         const buf = await file.arrayBuffer();
         const bytes = new Uint8Array(buf);
         let binary = "";
-        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        for (let i = 0; i < bytes.length; i++)
+          binary += String.fromCharCode(bytes[i]);
         importContent = btoa(binary);
         isBin = true;
       }
@@ -256,7 +266,11 @@ export function EditorPanel() {
       handleStartCreateNew();
       setSecretId(importSecretId);
       if (isBin) {
-        setImportedBinary({ name: file.name, size: file.size, base64: importContent });
+        setImportedBinary({
+          name: file.name,
+          size: file.size,
+          base64: importContent,
+        });
         setIsBinary(true);
         setEditorContent("");
       } else {
@@ -288,7 +302,9 @@ export function EditorPanel() {
         <div className="absolute inset-0 bg-primary/20 border-4 border-dashed border-primary z-50 flex items-center justify-center">
           <div className="text-center">
             <Upload className="h-16 w-16 mx-auto mb-4 text-primary" />
-            <p className="text-lg font-bold text-primary">Drop JSON file here to import</p>
+            <p className="text-lg font-bold text-primary">
+              Drop JSON file here to import
+            </p>
           </div>
         </div>
       )}
@@ -300,7 +316,9 @@ export function EditorPanel() {
             <div className="text-sm">
               <div className="font-medium">Loading secret...</div>
               {fetchingSecretId && (
-                <div className="opacity-70 truncate max-w-[50vw]">{fetchingSecretId}</div>
+                <div className="opacity-70 truncate max-w-[50vw]">
+                  {fetchingSecretId}
+                </div>
               )}
             </div>
           </div>
@@ -387,7 +405,9 @@ export function EditorPanel() {
         <div className="flex-1 flex items-center justify-center text-base-content/50">
           <div className="text-center">
             <p className="text-lg mb-2">No secret selected</p>
-            <p className="text-sm">Select a secret from the list to view its content</p>
+            <p className="text-sm">
+              Select a secret from the list to view its content
+            </p>
           </div>
         </div>
       )}

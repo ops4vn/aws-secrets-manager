@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { ClipboardCheck, ClipboardCopy, Eye, EyeOff, WrapText, Save, X, Download } from "lucide-react";
+import {
+  ClipboardCheck,
+  ClipboardCopy,
+  Eye,
+  EyeOff,
+  WrapText,
+  Save,
+  X,
+  Download,
+  AlertCircle,
+} from "lucide-react";
 
 type Props = {
   label?: string;
@@ -69,13 +79,14 @@ export function EditorToolbar({
     <div className="flex items-center gap-2 mb-2 relative">
       <span className="opacity-70">{label}</span>
       {isActiveProd && (
-        <span className="badge badge-error badge-sm font-bold flex items-center gap-1">
-          {/* AlertTriangle icon inline path to avoid extra imports here */}
-          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-          PROD SECRET! PLEASE BE CAREFUL!
+        <span className="badge bg-error text-white badge-sm font-bold flex items-center gap-1">
+          <AlertCircle className="h-3.5 w-3.5" />
+          PROD SECRET !!!
         </span>
       )}
-      {viewText && <span className="badge badge-ghost badge-sm ml-2">{viewText}</span>}
+      {viewText && (
+        <span className="badge badge-ghost badge-sm ml-2">{viewText}</span>
+      )}
 
       {hasContent && (
         <>
@@ -89,12 +100,20 @@ export function EditorToolbar({
               }
             }}
           >
-            {copyCopied ? <ClipboardCheck className="h-3.5 w-3.5 mr-1" /> : <ClipboardCopy className="h-3.5 w-3.5 mr-1" />}
+            {copyCopied ? (
+              <ClipboardCheck className="h-3.5 w-3.5 mr-1" />
+            ) : (
+              <ClipboardCopy className="h-3.5 w-3.5 mr-1" />
+            )}
             {copyCopied ? "Copied" : "Copy"}
           </button>
 
           {canExport && (
-            <button className="btn btn-xs" onClick={onExport} title="Export secret to JSON file">
+            <button
+              className="btn btn-xs"
+              onClick={onExport}
+              title="Export secret to JSON file"
+            >
               <Download className="h-3.5 w-3.5 mr-1" /> Export
             </button>
           )}
@@ -107,7 +126,11 @@ export function EditorToolbar({
           onClick={() => setIsDecoded(!isDecoded)}
           title={isDecoded ? "Show encoded (base64)" : "Show decoded (text)"}
         >
-          {isDecoded ? <EyeOff className="h-3.5 w-3.5 mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
+          {isDecoded ? (
+            <EyeOff className="h-3.5 w-3.5 mr-1" />
+          ) : (
+            <Eye className="h-3.5 w-3.5 mr-1" />
+          )}
           {isDecoded ? "Encoded" : "Decoded"}
         </button>
       )}
@@ -122,7 +145,11 @@ export function EditorToolbar({
           }}
           title="Copy by key"
         >
-          {copyByKeyCopied ? <ClipboardCheck className="h-3.5 w-3.5 mr-1" /> : <ClipboardCopy className="h-3.5 w-3.5 mr-1" />}
+          {copyByKeyCopied ? (
+            <ClipboardCheck className="h-3.5 w-3.5 mr-1" />
+          ) : (
+            <ClipboardCopy className="h-3.5 w-3.5 mr-1" />
+          )}
           {copyByKeyCopied ? "Copied" : "Copy by key"}
         </button>
       )}
@@ -142,7 +169,9 @@ export function EditorToolbar({
           ref={keyPickerRef}
           className="absolute z-20 top-8 left-40 w-80 max-h-64 overflow-auto bg-base-100 border border-base-300 rounded-md shadow"
         >
-          <div className="p-2 text-xs opacity-70">Select a key to copy its value</div>
+          <div className="p-2 text-xs opacity-70">
+            Select a key to copy its value
+          </div>
           <ul className="menu menu-sm">
             {(() => {
               try {
@@ -157,12 +186,15 @@ export function EditorToolbar({
                         navigator.clipboard.writeText(value);
                         setShowKeyPicker(false);
                         setCopyByKeyCopied(true);
-                        window.setTimeout(() => setCopyByKeyCopied(false), 1500);
+                        window.setTimeout(
+                          () => setCopyByKeyCopied(false),
+                          1500
+                        );
                       }}
                       className="justify-start"
                       title={value}
                     >
-                      <span className="truncate max-w-[12rem]">{path}</span>
+                      <span className="truncate max-w-48">{path}</span>
                     </button>
                   </li>
                 ));
@@ -214,5 +246,3 @@ function extractJsonPaths(obj: any, prefix: string = ""): JsonPathItem[] {
 }
 
 export default EditorToolbar;
-
-

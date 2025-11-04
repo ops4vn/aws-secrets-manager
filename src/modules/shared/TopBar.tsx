@@ -1,4 +1,4 @@
-import { BookOpen, Edit3, Plus, Upload } from "lucide-react";
+import { Edit3, LockOpen, Plus, Upload } from "lucide-react";
 import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
 import { useLogsStore } from "../store/useLogsStore";
 import { useProfileStore } from "../store/useProfileStore";
@@ -121,7 +121,7 @@ export function TopBar() {
       <div className="flex flex-1 items-center gap-3">
         <span className="whitespace-nowrap">Secret ID:</span>
         <input
-          className="input input-bordered input-sm w-full max-w-xl"
+          className="input focus:outline-none focus:border-primary input-sm w-full max-w-xl"
           value={secretId}
           onChange={(e) => setSecretId(e.target.value)}
           placeholder="my/app/secret"
@@ -154,10 +154,18 @@ export function TopBar() {
           title={isEditing ? "Cancel edit first to prevent data loss" : ""}
           onClick={() => {
             const profile = selectedProfile ?? defaultProfile;
-            fetchSecretById(secretId, profile, pushInfo, pushError, pushSuccess, (sid, isBin) => updateSecretMetadata(profile, sid, isBin), addToRecent);
+            fetchSecretById(
+              secretId,
+              profile,
+              pushInfo,
+              pushError,
+              pushSuccess,
+              (sid, isBin) => updateSecretMetadata(profile, sid, isBin),
+              addToRecent
+            );
           }}
         >
-          <BookOpen className="h-4 w-4 mr-1" /> Get Secret
+          <LockOpen className="h-4 w-4 mr-1" /> Get Secret
         </button>
         <button
           className="btn btn-sm"

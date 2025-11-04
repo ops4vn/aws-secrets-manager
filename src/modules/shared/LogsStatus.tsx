@@ -4,7 +4,8 @@ import { useLogsStore } from "../store/useLogsStore";
 import { useEditorStore } from "../store/useEditorStore";
 
 export function LogsStatus() {
-  const { logs, clearLogs, autoScrollLogs, setAutoScrollLogs, pushLog } = useLogsStore();
+  const { logs, clearLogs, autoScrollLogs, setAutoScrollLogs, pushLog } =
+    useLogsStore();
   const { isCreatingNew, secretId } = useEditorStore();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [levelFilter, setLevelFilter] = useState<

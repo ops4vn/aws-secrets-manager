@@ -6,5 +6,3 @@ export type EditorTab = {
   isTooLarge?: boolean;
   binarySize?: number;
 };
-
-
