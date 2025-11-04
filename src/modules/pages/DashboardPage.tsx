@@ -1,20 +1,51 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { SidebarProfiles } from "../shared/SidebarProfiles";
 import { TopBar } from "../shared/TopBar";
 import { EditorPanel } from "../shared/EditorPanel";
 import { LogsStatus } from "../shared/LogsStatus";
 import { RightPanel } from "../shared/RightPanel";
-import { useDashboardStore } from "../store/useDashboardStore";
+import { useLogsStore } from "../store/useLogsStore";
+import { useProfileStore } from "../store/useProfileStore";
+import { useSecretsListStore } from "../store/useSecretsListStore";
+import { useBookmarksStore } from "../store/useBookmarksStore";
 import { useUiStore } from "../store/useUiStore";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { api } from "../services/tauriApi";
 
 export function DashboardPage() {
-  const { showSecretsTree, initLoad } = useDashboardStore();
-  const { leftSidebarOpen, rightPanelOpen, toggleRightPanel } = useUiStore();
+  const { pushError, pushSuccess } = useLogsStore();
+  const profileStore = useProfileStore();
+  const secretsListStore = useSecretsListStore();
+  const bookmarksStore = useBookmarksStore();
+  const { showSecretsTree } = secretsListStore;
+  const leftSidebarOpen = useUiStore((state) => state.leftSidebarOpen);
+  const rightPanelOpen = useUiStore((state) => state.rightPanelOpen);
+  const toggleRightPanel = useUiStore((state) => state.toggleRightPanel);
+
+  const initLoad = useCallback(async () => {
+    await profileStore.initLoad(pushError, pushSuccess, async (prof) => {
+      const cached = await api.loadCachedSecretNames(prof);
+      const cachedMetadata = await api.loadCachedSecretMetadata(prof);
+
+      if (cached && cached.length > 0) {
+        secretsListStore.setShowSecretsTree(true);
+        useSecretsListStore.setState({ allNames: cached });
+
+        if (cachedMetadata) {
+          const metadataMap: Record<string, boolean> = {};
+          cachedMetadata.forEach((m) => {
+            metadataMap[m.name] = m.is_binary;
+          });
+          useSecretsListStore.setState({ secretMetadata: metadataMap });
+        }
+      }
+    });
+    await bookmarksStore.initLoad();
+  }, [profileStore, secretsListStore, bookmarksStore, pushError, pushSuccess]);
 
   useEffect(() => {
-    void initLoad();
-  }, [initLoad]);
+    initLoad();
+  }, []);
 
   return (
     <div className="flex h-[calc(100vh-40px)] min-h-0 overflow-hidden">
@@ -26,7 +57,6 @@ export function DashboardPage() {
         }`}
         aria-hidden={!leftSidebarOpen}
       >
-        {/* Keep content mounted for smoother animation */}
         <div
           className={`${
             leftSidebarOpen ? "opacity-100" : "opacity-0"
@@ -70,7 +100,7 @@ export function DashboardPage() {
               window.addEventListener("mouseup", onUp);
             }}
           />
-          <div id="logs-container" className="h-80 min-h-[6rem]">
+          <div id="logs-container" className="h-80 min-h-24">
             <LogsStatus />
           </div>
         </section>
@@ -79,7 +109,7 @@ export function DashboardPage() {
       {showSecretsTree && (
         <div
           className={`group flex-none transition-opacity duration-300 ${
-            rightPanelOpen && showSecretsTree ? "w-128 relative" : "w-0"
+            rightPanelOpen && showSecretsTree ? "w-lg relative" : "w-0"
           }`}
         >
           <div

@@ -1,31 +1,23 @@
 import { Copy, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useDashboardStore } from "../store/useDashboardStore";
+import { useLogsStore } from "../store/useLogsStore";
+import { useEditorStore } from "../store/useEditorStore";
 
 export function LogsStatus() {
-  const {
-    logs,
-    clearLogs,
-    autoScrollLogs,
-    setAutoScrollLogs,
-    isCreatingNew,
-    secretId,
-    pushLog,
-  } = useDashboardStore();
+  const { logs, clearLogs, autoScrollLogs, setAutoScrollLogs, pushLog } = useLogsStore();
+  const { isCreatingNew, secretId } = useEditorStore();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [levelFilter, setLevelFilter] = useState<
     "all" | "info" | "warn" | "error" | "debug" | "success"
   >("all");
   const [textFilter, setTextFilter] = useState<string>("");
-  useEffect(() => {
-    if (autoScrollLogs && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [logs, autoScrollLogs]);
+
   const canDelete = !isCreatingNew && !!secretId;
+
   const handleDelete = () => {
     pushLog("[WARN] Delete clicked (not implemented)");
   };
+
   const getLevel = (
     line: string
   ): "info" | "warn" | "error" | "debug" | "success" | "unknown" => {
@@ -42,6 +34,7 @@ export function LogsStatus() {
       return v;
     return "unknown";
   };
+
   const filteredLogs = useMemo(() => {
     return logs.filter((line) => {
       if (levelFilter !== "all") {
@@ -54,6 +47,7 @@ export function LogsStatus() {
       return true;
     });
   }, [logs, levelFilter, textFilter]);
+
   const levelClass = (line: string) => {
     const level = getLevel(line);
     switch (level) {
@@ -71,6 +65,7 @@ export function LogsStatus() {
         return "";
     }
   };
+
   const copyFiltered = async () => {
     try {
       await navigator.clipboard.writeText(filteredLogs.join("\n"));
@@ -79,6 +74,13 @@ export function LogsStatus() {
       pushLog("[ERROR] Copy failed");
     }
   };
+
+  useEffect(() => {
+    if (autoScrollLogs && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [logs, autoScrollLogs]);
+
   return (
     <div className="bg-base-100 flex flex-col h-full">
       <div className="p-2 border-b border-base-300 flex items-center gap-2">

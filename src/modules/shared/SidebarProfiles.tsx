@@ -12,7 +12,11 @@ import {
   XCircle,
 } from "lucide-react";
 import { useState } from "react";
-import { useDashboardStore } from "../store/useDashboardStore";
+import { useLogsStore } from "../store/useLogsStore";
+import { useProfileStore } from "../store/useProfileStore";
+import { useSecretsListStore } from "../store/useSecretsListStore";
+import { useBookmarksStore } from "../store/useBookmarksStore";
+import { useEditorStore } from "../store/useEditorStore";
 
 // Helper to get display name for secret (last segment or unique part)
 function getSecretDisplayName(secretId: string, allSecrets: string[]): string {
@@ -66,23 +70,21 @@ export function SidebarProfiles() {
   const [profileCollapsed, setProfileCollapsed] = useState(false);
   const [bookmarksCollapsed, setBookmarksCollapsed] = useState(false);
   const [recentCollapsed, setRecentCollapsed] = useState(false);
+  const { pushInfo, pushError, pushSuccess, pushWarn } = useLogsStore();
   const {
     profiles,
     selectedProfile,
     defaultProfile,
     ssoValid,
     ssoChecking,
-    bookmarks,
-    recentSecrets,
     setSelectedProfile,
     saveDefault,
-    listSecrets,
     checkSsoFlow,
     triggerSsoLogin,
-    fetchSecretById,
-    addBookmark,
-    removeBookmark,
-  } = useDashboardStore();
+  } = useProfileStore();
+  const { listSecrets, updateSecretMetadata } = useSecretsListStore();
+  const { bookmarks, recentSecrets, addBookmark, removeBookmark, addToRecent } = useBookmarksStore();
+  const { fetchSecretById } = useEditorStore();
 
   return (
     <div className="flex flex-col gap-3">
@@ -118,7 +120,7 @@ export function SidebarProfiles() {
                   </option>
                 ))}
               </select>
-              <button className="btn btn-primary btn-sm" onClick={saveDefault}>
+              <button className="btn btn-primary btn-sm" onClick={() => saveDefault(pushSuccess)}>
                 <Star className="h-4 w-4 mr-1" /> Set default
               </button>
             </div>
@@ -156,9 +158,9 @@ export function SidebarProfiles() {
             <button
               className="btn btn-link btn-xs no-underline"
               onClick={async () => {
-                await triggerSsoLogin();
+                await triggerSsoLogin(pushWarn, pushInfo, pushError);
                 setTimeout(() => {
-                  void checkSsoFlow();
+                  void checkSsoFlow(pushWarn, pushInfo, pushSuccess, pushError);
                 }, 3000);
               }}
             >
@@ -167,7 +169,7 @@ export function SidebarProfiles() {
           )}
           <button
             className="btn btn-sm bg-[#FF9900] hover:bg-[#e58a00] text-white border-none"
-            onClick={() => checkSsoFlow()}
+            onClick={() => checkSsoFlow(pushWarn, pushInfo, pushSuccess, pushError)}
             disabled={!!ssoChecking}
             title={
               ssoChecking
@@ -190,13 +192,19 @@ export function SidebarProfiles() {
       <div className="flex items-center gap-2">
         <button
           className="btn btn-primary btn-sm flex-1"
-          onClick={() => listSecrets(false)}
+          onClick={() => {
+            const profile = selectedProfile ?? defaultProfile;
+            listSecrets(profile, pushInfo, pushWarn, pushSuccess, false);
+          }}
         >
           <List className="h-4 w-4 mr-1" /> List Secrets
         </button>
         <button
           className="btn btn-primary btn-sm flex-1"
-          onClick={() => listSecrets(true)}
+          onClick={() => {
+            const profile = selectedProfile ?? defaultProfile;
+            listSecrets(profile, pushInfo, pushWarn, pushSuccess, true);
+          }}
         >
           <RefreshCcw className="h-4 w-4 mr-1" /> Force Reload
         </button>
@@ -233,7 +241,10 @@ export function SidebarProfiles() {
                 >
                   <button
                     className="flex-1 text-left text-xs truncate hover:text-primary"
-                    onClick={() => fetchSecretById(secretId)}
+                    onClick={() => {
+                      const profile = selectedProfile ?? defaultProfile;
+                      fetchSecretById(secretId, profile, pushInfo, pushError, pushSuccess, (sid, isBin) => updateSecretMetadata(profile, sid, isBin), addToRecent);
+                    }}
                     title={secretId}
                   >
                     {getSecretDisplayName(secretId, bookmarks)}
@@ -285,7 +296,10 @@ export function SidebarProfiles() {
                   >
                     <button
                       className="flex-1 text-left text-xs truncate hover:text-primary"
-                      onClick={() => fetchSecretById(secretId)}
+                      onClick={() => {
+                      const profile = selectedProfile ?? defaultProfile;
+                      fetchSecretById(secretId, profile, pushInfo, pushError, pushSuccess, (sid, isBin) => updateSecretMetadata(profile, sid, isBin), addToRecent);
+                    }}
                       title={secretId}
                     >
                       {getSecretDisplayName(secretId, recentSecrets)}

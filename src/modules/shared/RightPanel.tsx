@@ -7,18 +7,23 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useDashboardStore } from "../store/useDashboardStore";
+import { useLogsStore } from "../store/useLogsStore";
+import { useProfileStore } from "../store/useProfileStore";
+import { useSecretsListStore } from "../store/useSecretsListStore";
+import { useEditorStore } from "../store/useEditorStore";
 
 export function RightPanel() {
+  const { pushInfo, pushError, pushSuccess, pushWarn } = useLogsStore();
+  const { selectedProfile, defaultProfile } = useProfileStore();
   const {
     searchQuery,
     setSearchQuery,
     allNames,
     secretMetadata,
     listSecrets,
-    setSecretId,
-    fetchSecretById,
-  } = useDashboardStore();
+    updateSecretMetadata,
+  } = useSecretsListStore();
+  const { fetchSecretById, setSecretId } = useEditorStore();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [localQuery, setLocalQuery] = useState<string>(searchQuery);
   const [showSearch, setShowSearch] = useState<boolean>(false);
@@ -40,14 +45,32 @@ export function RightPanel() {
   const handleSelect = useCallback(
     async (name: string) => {
       setSecretId(name);
-      await fetchSecretById(name);
+      const profile = selectedProfile ?? defaultProfile;
+      await fetchSecretById(
+        name,
+        profile,
+        pushInfo,
+        pushError,
+        pushSuccess,
+        (sid, isBin) => updateSecretMetadata(profile, sid, isBin),
+        async () => {}
+      );
     },
-    [setSecretId, fetchSecretById]
+    [
+      setSecretId,
+      fetchSecretById,
+      selectedProfile,
+      defaultProfile,
+      pushInfo,
+      pushError,
+      pushSuccess,
+      updateSecretMetadata,
+    ]
   );
 
   return (
     <div className="flex flex-col gap-3" ref={panelRef}>
-      <div className="sticky top-0 z-20 px-4 bg-base-100/95 supports-[backdrop-filter]:bg-base-100/80 backdrop-blur border-b border-base-300 py-2">
+      <div className="sticky top-0 z-20 px-4 bg-base-100/95 supports-backdrop-filter:bg-base-100/80 backdrop-blur border-b border-base-300 py-2">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Secrets</h2>
           <div className="flex items-center gap-1">
@@ -76,7 +99,10 @@ export function RightPanel() {
             <button
               className="btn btn-ghost btn-xs text-error"
               title="Force reload"
-              onClick={() => listSecrets(true)}
+              onClick={() => {
+                const profile = selectedProfile ?? defaultProfile;
+                listSecrets(profile, pushInfo, pushWarn, pushSuccess, true);
+              }}
             >
               <RefreshCcw className="h-4 w-4" />
             </button>
@@ -121,7 +147,7 @@ export function RightPanel() {
               >
                 <FileText className="h-4 w-4" />
                 <button
-                  className="text-left text-base-content hover:text-primary w-full whitespace-normal break-words"
+                  className="text-left text-base-content hover:text-primary w-full whitespace-normal wrap-break-word"
                   onClick={() => handleSelect(name)}
                 >
                   <span className="text-base-content/70">{name}</span>
@@ -200,7 +226,7 @@ function TreeNode({
           className="hover:bg-base-200/60 rounded w-full text-left py-2 px-2 flex items-center gap-2"
         >
           <FileText className="inline h-3.5 w-3.5 mr-2 align-top" />
-          <span className="text-base-content/70 whitespace-normal break-words align-top flex-1">
+          <span className="text-base-content/70 whitespace-normal wrap-break-word align-top flex-1">
             {node.name}
           </span>
           {secretMetadata[node.full] === true && (
@@ -218,7 +244,7 @@ function TreeNode({
       <details className="group">
         <summary className="w-full py-2 px-2 flex items-center gap-2 cursor-pointer select-none">
           <Folder className="h-4 w-4" />
-          <span className="text-base-content/80 whitespace-normal break-words">
+          <span className="text-base-content/80 whitespace-normal wrap-break-word">
             {node.name}
           </span>
         </summary>

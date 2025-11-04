@@ -1,21 +1,30 @@
 import { BookOpen, Edit3, Plus, Upload } from "lucide-react";
 import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
-import { useDashboardStore } from "../store/useDashboardStore";
+import { useLogsStore } from "../store/useLogsStore";
+import { useProfileStore } from "../store/useProfileStore";
+import { useSecretsListStore } from "../store/useSecretsListStore";
+import { useBookmarksStore } from "../store/useBookmarksStore";
+import { useEditorStore } from "../store/useEditorStore";
 import { useRef } from "react";
 
 export function TopBar() {
+  const { pushInfo, pushError, pushSuccess } = useLogsStore();
+  const { selectedProfile, defaultProfile } = useProfileStore();
+  const { updateSecretMetadata } = useSecretsListStore();
+  const { addToRecent } = useBookmarksStore();
   const {
     secretId,
     setSecretId,
     isEditing,
     isCreatingNew,
     fetchSecretById,
-    startEdit,
-    startCreateNew,
+    startEdit: startEditEditor,
+    startCreateNew: startCreateNewEditor,
     setEditorContent,
     setIsBinary,
     setImportedBinary,
-  } = useDashboardStore();
+  } = useEditorStore();
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,7 +82,7 @@ export function TopBar() {
       }
 
       // Switch to create/edit mode first (before setting content)
-      startCreateNew();
+      startCreateNewEditor(pushInfo);
 
       // Then set the content and secret IDs
       setSecretId(importSecretId);
@@ -143,7 +152,10 @@ export function TopBar() {
           className="btn btn-sm"
           disabled={isEditing}
           title={isEditing ? "Cancel edit first to prevent data loss" : ""}
-          onClick={() => fetchSecretById(secretId)}
+          onClick={() => {
+            const profile = selectedProfile ?? defaultProfile;
+            fetchSecretById(secretId, profile, pushInfo, pushError, pushSuccess, (sid, isBin) => updateSecretMetadata(profile, sid, isBin), addToRecent);
+          }}
         >
           <BookOpen className="h-4 w-4 mr-1" /> Get Secret
         </button>
@@ -157,7 +169,7 @@ export function TopBar() {
               ? "Already in edit mode"
               : ""
           }
-          onClick={startEdit}
+          onClick={() => startEditEditor(pushInfo)}
         >
           <Edit3 className="h-4 w-4 mr-1" /> Edit
         </button>
@@ -165,7 +177,7 @@ export function TopBar() {
           className="btn btn-sm"
           disabled={isEditing}
           title={isEditing ? "Finish current edit first" : ""}
-          onClick={startCreateNew}
+          onClick={() => startCreateNewEditor(pushInfo)}
         >
           <Plus className="h-4 w-4 mr-1" /> New Secret
         </button>

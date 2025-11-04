@@ -5,7 +5,11 @@ import { EditorView } from "@codemirror/view";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { Upload } from "lucide-react";
 import { isValidBase64 } from "./utils/base64Utils";
-import { useDashboardStore } from "../store/useDashboardStore";
+import { useLogsStore } from "../store/useLogsStore";
+import { useProfileStore } from "../store/useProfileStore";
+import { useSecretsListStore } from "../store/useSecretsListStore";
+import { useBookmarksStore } from "../store/useBookmarksStore";
+import { useEditorStore } from "../store/useEditorStore";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { EditorTabs } from "./editor/EditorTabs";
@@ -16,6 +20,10 @@ import { HighlightedContent } from "./editor/HighlightedContent";
 import type { EditorTab } from "./types";
 
 export function EditorPanel() {
+  const { pushInfo, pushError, pushSuccess } = useLogsStore();
+  const { selectedProfile, defaultProfile } = useProfileStore();
+  const { updateSecretMetadata } = useSecretsListStore();
+  const { addToRecent } = useBookmarksStore();
   const {
     tabs,
     activeTabId,
@@ -27,17 +35,19 @@ export function EditorPanel() {
     isFetchingSecret,
     fetchingSecretId,
     fetchedBinaryTooLarge,
-    save: onSave,
-    cancelEdit: onCancel,
+    save: saveEditor,
+    cancelEdit: cancelEditEditor,
     switchTab,
     closeTab,
     setSecretId,
-    startCreateNew,
+    startCreateNew: startCreateNewEditor,
     setEditorContent,
     setIsBinary,
     setImportedBinary,
     importedBinary,
-  } = useDashboardStore();
+    bindEvents,
+  } = useEditorStore();
+
   const [isDarkTheme, setIsDarkTheme] = useState<boolean>(
     typeof document !== "undefined" &&
       document.documentElement?.dataset?.theme === "dark"
@@ -57,6 +67,18 @@ export function EditorPanel() {
     handler();
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const profile = selectedProfile ?? defaultProfile;
+    
+    bindEvents(
+      () => {},
+      pushError,
+      pushSuccess,
+      (secretId, isBinary) => updateSecretMetadata(profile, secretId, isBinary),
+      addToRecent
+    );
+  }, [bindEvents, pushError, pushSuccess, updateSecretMetadata, addToRecent, selectedProfile, defaultProfile]);
 
   const viewText = useMemo(() => {
     if (isEditing) return null as string | null;
@@ -121,6 +143,19 @@ export function EditorPanel() {
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
   const isActiveProd = activeTab ? isProdSecret(activeTab.secretId) : false;
+
+  const handleSave = async () => {
+    const profile = selectedProfile ?? defaultProfile;
+    await saveEditor(profile, pushInfo, pushSuccess);
+  };
+
+  const handleCancel = () => {
+    cancelEditEditor(pushInfo);
+  };
+
+  const handleStartCreateNew = () => {
+    startCreateNewEditor(pushInfo);
+  };
 
   const handleExport = async () => {
     if (!activeTab || !content) return;
@@ -218,7 +253,7 @@ export function EditorPanel() {
         isBin = true;
       }
 
-      startCreateNew();
+      handleStartCreateNew();
       setSecretId(importSecretId);
       if (isBin) {
         setImportedBinary({ name: file.name, size: file.size, base64: importContent });
@@ -296,8 +331,8 @@ export function EditorPanel() {
             setWrap={(v) => setWrap(v)}
             isDecoded={isDecoded}
             setIsDecoded={(v) => setIsDecoded(v)}
-            onSave={onSave}
-            onCancel={onCancel}
+            onSave={handleSave}
+            onCancel={handleCancel}
             showSaveCancel={isEditing && !importedBinary}
             isValidBase64={isValidBase64}
           />
@@ -306,11 +341,11 @@ export function EditorPanel() {
             <BinaryImportPanel
               name={importedBinary.name}
               size={importedBinary.size}
-              onSave={onSave}
+              onSave={handleSave}
               onCancel={() => {
                 setImportedBinary(null);
                 setIsBinary(false);
-                onCancel();
+                handleCancel();
               }}
             />
           ) : fetchedBinaryTooLarge && !isEditing ? (

@@ -7,6 +7,9 @@ import { platform } from "@tauri-apps/plugin-os";
 
 export function MainLayout() {
   const [theme, setTheme] = useState<string | null>(null);
+  const [isMac, setIsMac] = useState(false);
+
+  console.log("MainLayout rendering - theme:", theme, "isMac:", isMac);
 
   const toggleTheme = async (checked: boolean) => {
     const next = checked ? "dark" : "light";
@@ -15,9 +18,14 @@ export function MainLayout() {
     await api.saveTheme(next);
   };
 
-  const isMac = platform() === "macos";
-
-  console.log(isMac);
+  useEffect(() => {
+    const checkPlatform = async () => {
+      const platformName = await platform();
+      console.log("checkPlatform - platformName:", platformName);
+      setIsMac(platformName === "macos");
+    };
+    checkPlatform();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -33,7 +41,9 @@ export function MainLayout() {
     <div className="flex flex-col min-h-screen bg-base-200 text-base-content">
       <div className="navbar bg-base-100 border-b border-base-300 px-2 h-10 min-h-10">
         <div
-          className={`flex-1 cursor-grab flex items-center gap-1 ${isMac ? "ms-20" : ""} select-none`}
+          className={`flex-1 cursor-grab flex items-center gap-1 ${
+            isMac ? "ms-20" : ""
+          } select-none`}
           data-tauri-drag-region
         >
           <SidebarToggleButton />
@@ -65,7 +75,9 @@ export function MainLayout() {
 }
 
 function SidebarToggleButton() {
-  const { leftSidebarOpen, toggleLeftSidebar } = useUiStore();
+  const leftSidebarOpen = useUiStore((state) => state.leftSidebarOpen);
+  const toggleLeftSidebar = useUiStore((state) => state.toggleLeftSidebar);
+
   return (
     <button
       className={`btn btn-ghost btn-sm btn-square h-8 w-8 min-h-0 p-0 ${
