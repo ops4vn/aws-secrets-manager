@@ -32,7 +32,7 @@ env:
   R2_ENDPOINT: https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
   R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
   # URL public để client tải (r2.dev). Nếu bạn dùng custom domain, đổi biến này cho gọn.
-  R2_PUBLIC_BASE: https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.dev/${{ secrets.CF_R2_BUCKET }}
+  R2_PUBLIC_BASE: ${{ secrets.CF_R2_PUBLIC_BASE }}
 
 jobs:
   build:
