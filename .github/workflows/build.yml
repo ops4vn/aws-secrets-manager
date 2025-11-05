@@ -31,6 +31,8 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_KEY }}
   R2_ENDPOINT: https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
   R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
+  # URL public để client tải (r2.dev). Nếu bạn dùng custom domain, đổi biến này cho gọn.
+  R2_PUBLIC_BASE: https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.dev/${{ secrets.CF_R2_BUCKET }}
 
 jobs:
   build:
@@ -67,6 +69,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch }}
+
+      - name: Fetch tags
+        if: contains(github.event.inputs.platforms, matrix.platform)
+        run: |
+          git fetch --tags --force
+          git describe --tags --abbrev=0 || echo "No tags yet"
 
       - name: Setup Bun
         if: contains(github.event.inputs.platforms, matrix.platform)
@@ -119,18 +127,22 @@ jobs:
           tauriScript: bun tauri
           args: "--target ${{ matrix.target }} --config src-tauri/tauri.${{ matrix.platform }}.conf.json"
 
-      # ✅ Find updater bundle for platform
+      # Tìm bundle dành cho updater (.app.tar.gz / .exe / .AppImage)
       - name: Find updater bundle file (.AppImage / .tar.gz / .exe)
         if: contains(github.event.inputs.platforms, matrix.platform)
         id: bundle
         shell: bash
         run: |
           if [ "${{ matrix.platform }}" = "macos" ]; then
-            FILE=$(find src-tauri/target/${{ matrix.target }}/release/bundle/macos -type f -name "*.app.tar.gz" | head -n 1)
+            FILE=$(find "src-tauri/target/${{ matrix.target }}/release/bundle/macos" -type f -name "*.app.tar.gz" | head -n 1)
           elif [ "${{ matrix.platform }}" = "windows" ]; then
-            FILE=$(find src-tauri/target/${{ matrix.target }}/release/bundle -type f -name "*-setup.exe" | head -n 1)
+            FILE=$(find "src-tauri/target/${{ matrix.target }}/release/bundle" -type f -name "*-setup.exe" | head -n 1)
           else
-            FILE=$(find src-tauri/target/${{ matrix.target }}/release/bundle/appimage -type f -name "*.AppImage" | head -n 1)
+            FILE=$(find "src-tauri/target/${{ matrix.target }}/release/bundle/appimage" -type f -name "*.AppImage" | head -n 1)
+          fi
+
+          if [ -z "$FILE" ]; then
+            echo "Updater bundle not found"; exit 1
           fi
 
           SIG="$FILE.sig"
@@ -138,12 +150,17 @@ jobs:
           echo "FILE=$FILE" >> $GITHUB_OUTPUT
           echo "SIG=$SIG" >> $GITHUB_OUTPUT
 
-      # ✅ Create latest.json including signature
+      # Tạo latest.json (version/url/signature/pub_date/notes)
       - name: Generate latest.json
         if: contains(github.event.inputs.platforms, matrix.platform)
         shell: bash
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          # Lấy tag mới nhất đang checkout (vX.Y.Z), bỏ tiền tố 'v'
+          VERSION=$(git describe --tags --abbrev=0 --match "v*" | sed 's/^v//')
+          if [ -z "$VERSION" ]; then
+            echo "Could not determine VERSION from tags"; exit 1
+          fi
+
           OUTDIR="releases/${{ matrix.target_name }}/${{ matrix.arch }}/${VERSION}"
           mkdir -p "$OUTDIR"
 
@@ -154,25 +171,25 @@ jobs:
           {
             "version": "${VERSION}",
             "pub_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-            "url": "${R2_ENDPOINT}/${R2_BUCKET}/${OUTDIR}/${FILE_NAME}",
+            "url": "${R2_PUBLIC_BASE}/${OUTDIR}/${FILE_NAME}",
             "signature": "${SIG_CONTENT}",
             "notes": "Auto-generated release via CI"
           }
           EOF
 
-      # ✅ Upload bundle + signature + latest.json to R2
+      # Upload bundle + signature + latest.json lên R2 (S3 API)
       - name: Upload artifacts to Cloudflare R2
         if: contains(github.event.inputs.platforms, matrix.platform)
         shell: bash
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION=$(git describe --tags --abbrev=0 --match "v*" | sed 's/^v//')
           DEST="s3://${R2_BUCKET}/releases/${{ matrix.target_name }}/${{ matrix.arch }}/${VERSION}/"
 
           aws s3 cp "${{ steps.bundle.outputs.FILE }}" "$DEST" --endpoint-url "$R2_ENDPOINT"
           aws s3 cp "${{ steps.bundle.outputs.SIG }}" "$DEST" --endpoint-url "$R2_ENDPOINT"
           aws s3 cp "releases/${{ matrix.target_name }}/${{ matrix.arch }}/${VERSION}/latest.json" "$DEST" --endpoint-url "$R2_ENDPOINT"
 
-  # GH Release optional — keep or remove
+  # Tuỳ chọn: tạo GitHub Release
   release:
     name: Create GitHub Release
     needs: build
