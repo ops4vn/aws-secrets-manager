@@ -100,10 +100,7 @@ pub fn increment_open_count() -> Option<u32> {
         }
     }
 
-    let current = root
-        .get("open_count")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
+    let current = root.get("open_count").and_then(|v| v.as_u64()).unwrap_or(0);
     let next = (current as u32).saturating_add(1);
     root["open_count"] = serde_json::json!(next);
 
@@ -116,7 +113,9 @@ pub fn get_update_defer_until() -> Option<u32> {
     let path = config_store_path()?;
     let data = fs::read_to_string(path).ok()?;
     let v: serde_json::Value = serde_json::from_str(&data).ok()?;
-    v.get("update_defer_until").and_then(|n| n.as_u64()).map(|n| n as u32)
+    v.get("update_defer_until")
+        .and_then(|n| n.as_u64())
+        .map(|n| n as u32)
 }
 
 #[tauri::command]
