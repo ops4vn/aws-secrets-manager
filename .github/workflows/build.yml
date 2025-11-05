@@ -167,7 +167,7 @@ jobs:
           FILE_NAME=$(basename "${{ steps.bundle.outputs.FILE }}")
           SIG_CONTENT=$(cat "${{ steps.bundle.outputs.SIG }}")
 
-          cat <<EOF > "$OUTDIR/latest.json"
+          cat <<EOF > "releases/${{ matrix.target_name }}/${{ matrix.arch }}/latest.json"
           {
             "version": "${VERSION}",
             "pub_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
