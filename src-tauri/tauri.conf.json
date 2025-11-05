@@ -39,7 +39,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU1M0QyM0VGNEMyODIxMDUKUldRRklTaE03eU05VlJmSU44clp2MHRyMlV3MjhFakkxQkgvNHpJRmZTcEY4dzZoR2F5SzE5YVYK",
       "endpoints": [
-        "https://4b902f3fcb50d4d3372f27bcd6927eaf.r2.cloudflarestorage.com/secrets-manager/releases/{{target}}/{{arch}}/{{current_version}}"
+        "https://pub-8dc96855b1594f1780a3a414df4fb116.r2.dev/releases/{{target}}/{{arch}}/{{current_version}}"
       ]
     }
   }
