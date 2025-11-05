@@ -87,6 +87,55 @@ pub fn save_theme(theme: &str) -> bool {
     fs::write(&path, serde_json::to_vec_pretty(&root).unwrap_or_default()).is_ok()
 }
 
+// ==== App open count & update defer logic ====
+#[tauri::command]
+pub fn increment_open_count() -> Option<u32> {
+    let path = config_store_path()?;
+    let _ = fs::create_dir_all(path.parent().unwrap());
+
+    let mut root = serde_json::json!({});
+    if let Ok(existing) = fs::read_to_string(&path) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&existing) {
+            root = v;
+        }
+    }
+
+    let current = root
+        .get("open_count")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let next = (current as u32).saturating_add(1);
+    root["open_count"] = serde_json::json!(next);
+
+    let _ = fs::write(&path, serde_json::to_vec_pretty(&root).unwrap_or_default());
+    Some(next)
+}
+
+#[tauri::command]
+pub fn get_update_defer_until() -> Option<u32> {
+    let path = config_store_path()?;
+    let data = fs::read_to_string(path).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&data).ok()?;
+    v.get("update_defer_until").and_then(|n| n.as_u64()).map(|n| n as u32)
+}
+
+#[tauri::command]
+pub fn set_update_defer_until(value: u32) -> bool {
+    let path = match config_store_path() {
+        Some(p) => p,
+        None => return false,
+    };
+    let _ = fs::create_dir_all(path.parent().unwrap());
+    let mut root = serde_json::json!({});
+    if let Ok(existing) = fs::read_to_string(&path) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&existing) {
+            root = v;
+        }
+    }
+    root["update_defer_until"] = serde_json::json!(value);
+    fs::write(&path, serde_json::to_vec_pretty(&root).unwrap_or_default()).is_ok()
+}
+
 #[tauri::command]
 pub fn load_cached_secret_names(profile: &str) -> Option<Vec<String>> {
     // Backward compatibility: try loading metadata first, fallback to old format

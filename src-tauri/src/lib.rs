@@ -4,6 +4,8 @@ mod helper;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
@@ -19,6 +21,10 @@ pub fn run() {
             commands::config::save_bookmarks,
             commands::config::load_recent_secrets,
             commands::config::save_recent_secrets,
+            // app open count / update defer
+            commands::config::increment_open_count,
+            commands::config::get_update_defer_until,
+            commands::config::set_update_defer_until,
             // profiles and secrets
             commands::aws::load_profiles,
             commands::aws::list_secrets,
