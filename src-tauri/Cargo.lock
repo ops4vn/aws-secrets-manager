@@ -4071,7 +4071,7 @@ dependencies = [
 
 [[package]]
 name = "secman"
-version = "0.0.1"
+version = "0.0.8"
 dependencies = [
  "anyhow",
  "aws-config",

@@ -58,7 +58,7 @@ function findCommonPrefix(strings: string[]): string | null {
   return null;
 }
 
-export function SidebarProfiles() {
+export function SidebarLeftPanel() {
   const [profileCollapsed, setProfileCollapsed] = useState(false);
   const [bookmarksCollapsed, setBookmarksCollapsed] = useState(false);
   const [recentCollapsed, setRecentCollapsed] = useState(false);

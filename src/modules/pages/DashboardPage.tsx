@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { SidebarProfiles } from "../shared/SidebarProfiles";
+import { SidebarLeftPanel } from "../shared/SidebarLeftPanel";
 import { TopBar } from "../shared/TopBar";
 import { EditorPanel } from "../shared/EditorPanel";
 import { LogsStatus } from "../shared/LogsStatus";
@@ -62,7 +62,7 @@ export function DashboardPage() {
             leftSidebarOpen ? "opacity-100" : "opacity-0"
           } transition-opacity duration-200`}
         >
-          <SidebarProfiles />
+          <SidebarLeftPanel />
         </div>
       </aside>
 
