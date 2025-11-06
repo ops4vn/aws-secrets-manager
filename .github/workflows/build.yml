@@ -136,7 +136,7 @@ jobs:
           if [ "${{ matrix.platform }}" = "macos" ]; then
             FILE=$(find "src-tauri/target/${{ matrix.target }}/release/bundle/macos" -type f -name "*.app.tar.gz" | head -n 1)
           elif [ "${{ matrix.platform }}" = "windows" ]; then
-            FILE=$(find "src-tauri/target/${{ matrix.target }}/release/bundle" -type f -name "Secrets Manager-*.msi" | head -n 1)
+            FILE=$(find "src-tauri/target/${{ matrix.target }}/release/bundle" -type f -name "*.msi" | head -n 1)
           else
             FILE=$(find "src-tauri/target/${{ matrix.target }}/release/bundle/appimage" -type f -name "*.AppImage" | head -n 1)
           fi
