@@ -13,7 +13,11 @@
     "build:windows": "TAURI_PLATFORM=windows tauri build --config src-tauri/tauri.windows.conf.json",
     "build:linux": "TAURI_PLATFORM=linux tauri build --config src-tauri/tauri.linux.conf.json",
     "preview": "vite preview",
-    "generate:icon": "bun tauri icon src-tauri/original-icon.png"
+    "generate:icon": "bun tauri icon src-tauri/original-icon.png",
+    "bump:patch": "bun scripts/sync-version.mjs patch",
+    "bump:minor": "bun scripts/sync-version.mjs minor",
+    "bump:major": "bun scripts/sync-version.mjs major",
+    "bump:version": "bun scripts/sync-version.mjs"
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",
