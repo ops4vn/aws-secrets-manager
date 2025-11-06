@@ -9,8 +9,6 @@ export function MainLayout() {
   const [theme, setTheme] = useState<string | null>(null);
   const [isMac, setIsMac] = useState(false);
 
-  console.log("MainLayout rendering - theme:", theme, "isMac:", isMac);
-
   const toggleTheme = async (checked: boolean) => {
     const next = checked ? "dark" : "light";
     document.documentElement.setAttribute("data-theme", next);
@@ -21,7 +19,6 @@ export function MainLayout() {
   useEffect(() => {
     const checkPlatform = async () => {
       const platformName = await platform();
-      console.log("checkPlatform - platformName:", platformName);
       setIsMac(platformName === "macos");
     };
     checkPlatform();

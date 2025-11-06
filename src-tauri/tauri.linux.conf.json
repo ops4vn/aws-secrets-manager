@@ -1,3 +1,15 @@
 {
-  "identifier": "com.zed.secrets-manager"
+  "identifier": "com.zed.secrets-manager",
+  "app": {
+    "windows": [
+      {
+        "title": "Secrets Manager",
+        "width": 1200,
+        "height": 900,
+        "maximized": true,
+        "visible": false,
+        "titleBarStyle": "Overlay"
+      }
+    ]
+  }
 }
