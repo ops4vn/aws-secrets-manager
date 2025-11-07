@@ -22,7 +22,7 @@ export function ProfilesSection() {
         onChange={(e) => setCollapsed(!e.target.checked)}
       />
       <div className="collapse-title p-2 min-h-0 flex items-center gap-2">
-        <h2 className="text-base font-semibold">Profiles</h2>
+        <h2 className="text-xs font-semibold">Profiles</h2>
         {defaultProfile && (
           <div className="badge badge-ghost badge-xs" title="Default profile">
             Default: {defaultProfile}

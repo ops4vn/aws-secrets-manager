@@ -11,6 +11,7 @@ type Actions = {
   addBookmark: (secretId: string) => Promise<void>;
   removeBookmark: (secretId: string) => Promise<void>;
   addToRecent: (secretId: string) => Promise<void>;
+  clearRecentSecrets: () => Promise<void>;
 };
 
 export const useBookmarksStore = create<State & Actions>((set, get) => ({
@@ -45,6 +46,11 @@ export const useBookmarksStore = create<State & Actions>((set, get) => ({
     const newRecent = [secretId, ...filtered].slice(0, 20);
     set({ recentSecrets: newRecent });
     await api.saveRecentSecrets(newRecent);
+  },
+
+  clearRecentSecrets: async () => {
+    set({ recentSecrets: [] });
+    await api.saveRecentSecrets([]);
   },
 }));
 
