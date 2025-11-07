@@ -184,9 +184,12 @@ pub fn save_cached_secret_metadata(profile: &str, metadata: Vec<SecretMetadata>)
     false
 }
 
-fn bookmarks_path() -> Option<PathBuf> {
+fn bookmarks_path(profile: &str) -> Option<PathBuf> {
     let dir = dirs::config_dir()?;
-    Some(dir.join("secmanager").join("bookmarks.json"))
+    Some(
+        dir.join("secmanager")
+            .join(format!("bookmarks_{profile}.json")),
+    )
 }
 
 fn recent_secrets_path() -> Option<PathBuf> {
@@ -195,15 +198,15 @@ fn recent_secrets_path() -> Option<PathBuf> {
 }
 
 #[tauri::command]
-pub fn load_bookmarks() -> Option<Vec<String>> {
-    let path = bookmarks_path()?;
+pub fn load_bookmarks(profile: &str) -> Option<Vec<String>> {
+    let path = bookmarks_path(profile)?;
     let data = fs::read_to_string(path).ok()?;
     serde_json::from_str::<Vec<String>>(&data).ok()
 }
 
 #[tauri::command]
-pub fn save_bookmarks(bookmarks: Vec<String>) -> bool {
-    if let Some(path) = bookmarks_path() {
+pub fn save_bookmarks(profile: &str, bookmarks: Vec<String>) -> bool {
+    if let Some(path) = bookmarks_path(profile) {
         let _ = fs::create_dir_all(path.parent().unwrap());
         return fs::write(
             path,

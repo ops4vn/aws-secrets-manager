@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../services/tauriApi";
 import { useLogsStore } from "./useLogsStore";
+import { useBookmarksStore } from "./useBookmarksStore";
 
 type State = {
   profiles: string[];
@@ -28,7 +29,12 @@ export const useProfileStore = create<State & Actions>((set, get) => ({
   ssoChecking: false,
   _eventsBound: false,
 
-  setSelectedProfile: (p) => set({ selectedProfile: p }),
+  setSelectedProfile: (p) => {
+    set({ selectedProfile: p });
+    // Load bookmarks for the new profile
+    const { loadBookmarksForProfile } = useBookmarksStore.getState();
+    void loadBookmarksForProfile(p);
+  },
 
   initLoad: async (onSecretsLoad) => {
     const { pushError, pushSuccess } = useLogsStore.getState();

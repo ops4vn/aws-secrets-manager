@@ -36,8 +36,8 @@ export const api = {
   triggerSsoLogin: (profile: string) => invoke<boolean>("trigger_sso_login", { profile }),
   loadTheme: () => invoke<string | null>("load_theme"),
   saveTheme: (theme: string) => invoke<boolean>("save_theme", { theme }),
-  loadBookmarks: () => invoke<string[] | null>("load_bookmarks"),
-  saveBookmarks: (bookmarks: string[]) => invoke<boolean>("save_bookmarks", { bookmarks }),
+  loadBookmarks: (profile: string) => invoke<string[] | null>("load_bookmarks", { profile }),
+  saveBookmarks: (profile: string, bookmarks: string[]) => invoke<boolean>("save_bookmarks", { profile, bookmarks }),
   loadRecentSecrets: () => invoke<string[] | null>("load_recent_secrets"),
   saveRecentSecrets: (recent: string[]) => invoke<boolean>("save_recent_secrets", { recent }),
 };
