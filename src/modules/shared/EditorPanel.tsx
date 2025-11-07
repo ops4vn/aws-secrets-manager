@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json as jsonLang } from "@codemirror/lang-json";
 import { EditorView } from "@codemirror/view";
@@ -8,7 +8,8 @@ import { isValidBase64 } from "./utils/base64Utils";
 import { useProfileStore } from "../store/useProfileStore";
 import { useEditorStore } from "../store/useEditorStore";
 import { save } from "@tauri-apps/plugin-dialog";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
+import { writeTextFile, readTextFile, readFile } from "@tauri-apps/plugin-fs";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { EditorTabs } from "./editor/EditorTabs";
 import { EditorToolbar } from "./editor/EditorToolbar";
 import { BinaryImportPanel } from "./editor/BinaryImportPanel";
@@ -63,6 +64,7 @@ export function EditorPanel() {
   const [wrap, setWrap] = useState<boolean>(false);
   const [isDecoded, setIsDecoded] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const isProcessingFileRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -157,6 +159,144 @@ export function EditorPanel() {
     startCreateNewEditor();
   };
 
+  const handleFileImport = useCallback(async (filePath: string) => {
+    if (isProcessingFileRef.current) {
+      return;
+    }
+    isProcessingFileRef.current = true;
+
+    try {
+      const fileName = filePath.split(/[/\\]/).pop() || filePath;
+      let importSecretId = fileName.replace(/\.json$/, "").replace(/_/g, "/");
+      let importContent = "";
+      let isBin = false;
+
+      const isJsonFile = fileName.toLowerCase().endsWith(".json");
+      
+      if (isJsonFile) {
+        try {
+          const text = await readTextFile(filePath);
+          try {
+            const data = JSON.parse(text);
+            importSecretId = (data?.secretId as string) || importSecretId;
+            if (
+              data &&
+              typeof data === "object" &&
+              ("content" in data || "value" in data)
+            ) {
+              const raw = (data as any).content ?? (data as any).value;
+              importContent =
+                typeof raw === "string" ? raw : JSON.stringify(raw, null, 2);
+              isBin = false;
+            } else {
+              importContent = JSON.stringify(data, null, 2);
+              isBin = false;
+            }
+          } catch {
+            // Not valid JSON, treat as binary
+            const binaryData = await readFile(filePath);
+            const bytes = new Uint8Array(binaryData);
+            let binary = "";
+            for (let i = 0; i < bytes.length; i++)
+              binary += String.fromCharCode(bytes[i]);
+            importContent = btoa(binary);
+            isBin = true;
+          }
+        } catch {
+          // Read as binary if text read fails
+          const binaryData = await readFile(filePath);
+          const bytes = new Uint8Array(binaryData);
+          let binary = "";
+          for (let i = 0; i < bytes.length; i++)
+            binary += String.fromCharCode(bytes[i]);
+          importContent = btoa(binary);
+          isBin = true;
+        }
+      } else {
+        // Binary file
+        const binaryData = await readFile(filePath);
+        const bytes = new Uint8Array(binaryData);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++)
+          binary += String.fromCharCode(bytes[i]);
+        importContent = btoa(binary);
+        isBin = true;
+      }
+
+      handleStartCreateNew();
+      setSecretId(importSecretId);
+      if (isBin) {
+        // Get file size
+        const binaryData = await readFile(filePath);
+        setImportedBinary({
+          name: fileName,
+          size: binaryData.length,
+          base64: importContent,
+        });
+        setIsBinary(true);
+        setEditorContent("");
+      } else {
+        setImportedBinary(null);
+        setIsBinary(false);
+        setEditorContent(importContent);
+      }
+
+      setTimeout(() => {
+        const secretIdInput = document.querySelector(
+          'input[placeholder="my/app/secret"]'
+        ) as HTMLInputElement;
+        secretIdInput?.focus();
+        secretIdInput?.select();
+      }, 100);
+    } catch (error) {
+      console.error("Failed to import file:", error);
+    } finally {
+      isProcessingFileRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    let lastDropTime = 0;
+    const DROP_DEBOUNCE_MS = 500;
+    
+    const setupFileDrop = async () => {
+      const unlisten = await appWindow.onDragDropEvent((event) => {
+        if (event.payload.type === 'enter' || event.payload.type === 'over') {
+          setIsDragging(true);
+        } else if (event.payload.type === 'drop') {
+          setIsDragging(false);
+          const filePaths = event.payload.paths;
+          if (filePaths.length === 0) return;
+          
+          const now = Date.now();
+          if (now - lastDropTime < DROP_DEBOUNCE_MS) {
+            return;
+          }
+          lastDropTime = now;
+          
+          const filePath = filePaths[0];
+          handleFileImport(filePath);
+        } else if (event.payload.type === 'leave') {
+          setIsDragging(false);
+        }
+      });
+
+      return unlisten;
+    };
+
+    let cleanup: (() => void) | null = null;
+    setupFileDrop().then((cleanupFn) => {
+      cleanup = cleanupFn;
+    });
+
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, [handleFileImport]);
+
   const handleExport = async () => {
     if (!activeTab || !content) return;
 
@@ -189,106 +329,9 @@ export function EditorPanel() {
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    const files = Array.from(e.dataTransfer.files);
-    const file = files[0];
-    if (!file) return;
-
-    try {
-      let importSecretId = file.name.replace(/\.json$/, "").replace(/_/g, "/");
-      let importContent = "";
-      let isBin = false;
-
-      const isJsonFile =
-        file.type === "application/json" ||
-        file.name.toLowerCase().endsWith(".json");
-      if (isJsonFile) {
-        const text = await file.text();
-        try {
-          const data = JSON.parse(text);
-          importSecretId = (data?.secretId as string) || importSecretId;
-          if (
-            data &&
-            typeof data === "object" &&
-            ("content" in data || "value" in data)
-          ) {
-            const raw = (data as any).content ?? (data as any).value;
-            importContent =
-              typeof raw === "string" ? raw : JSON.stringify(raw, null, 2);
-            isBin = false;
-          } else {
-            importContent = JSON.stringify(data, null, 2);
-            isBin = false;
-          }
-        } catch {
-          const buf = await file.arrayBuffer();
-          const bytes = new Uint8Array(buf);
-          let binary = "";
-          for (let i = 0; i < bytes.length; i++)
-            binary += String.fromCharCode(bytes[i]);
-          importContent = btoa(binary);
-          isBin = true;
-        }
-      } else {
-        const buf = await file.arrayBuffer();
-        const bytes = new Uint8Array(buf);
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++)
-          binary += String.fromCharCode(bytes[i]);
-        importContent = btoa(binary);
-        isBin = true;
-      }
-
-      handleStartCreateNew();
-      setSecretId(importSecretId);
-      if (isBin) {
-        setImportedBinary({
-          name: file.name,
-          size: file.size,
-          base64: importContent,
-        });
-        setIsBinary(true);
-        setEditorContent("");
-      } else {
-        setImportedBinary(null);
-        setIsBinary(false);
-        setEditorContent(importContent);
-      }
-
-      setTimeout(() => {
-        const secretIdInput = document.querySelector(
-          'input[placeholder="my/app/secret"]'
-        ) as HTMLInputElement;
-        secretIdInput?.focus();
-        secretIdInput?.select();
-      }, 100);
-    } catch (error) {
-      console.error("Failed to import JSON:", error);
-    }
-  };
-
   return (
     <div
-      className="p-4 overflow-hidden h-full flex flex-col relative"
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      className="p-2 overflow-hidden h-full flex flex-col relative"
     >
       {isDragging && (
         <div className="absolute inset-0 bg-primary/20 border-4 border-dashed border-primary z-50 flex items-center justify-center">

@@ -16,7 +16,8 @@
         "width": 1200,
         "height": 900,
         "maximized": true,
-        "visible": false
+        "visible": false,
+        "fileDropEnabled": true
       }
     ],
     "security": {
