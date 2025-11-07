@@ -18,6 +18,7 @@ export function DashboardPage() {
   const { showSecretsTree } = secretsListStore;
   const leftSidebarOpen = useUiStore((state) => state.leftSidebarOpen);
   const rightPanelOpen = useUiStore((state) => state.rightPanelOpen);
+  const rightPanelWidth = useUiStore((state) => state.rightPanelWidth);
   const toggleRightPanel = useUiStore((state) => state.toggleRightPanel);
 
   const initLoad = useCallback(async () => {
@@ -106,10 +107,44 @@ export function DashboardPage() {
 
       {showSecretsTree && (
         <div
-          className={`group flex-none transition-opacity duration-300 ${
-            rightPanelOpen && showSecretsTree ? "w-lg relative" : "w-0"
+          className={`group flex-none transition-opacity duration-300 relative ${
+            rightPanelOpen && showSecretsTree ? "" : "w-0"
           }`}
+          style={{
+            width: rightPanelOpen && showSecretsTree ? `${rightPanelWidth}px` : "0px",
+          }}
         >
+          {/* Resize handle */}
+          {rightPanelOpen && showSecretsTree && (
+            <div
+              className="absolute left-0 top-0 h-full w-1 z-30 cursor-col-resize hover:bg-primary/50 transition-colors"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startWidth = useUiStore.getState().rightPanelWidth;
+                
+                const onMove = (ev: MouseEvent) => {
+                  const dx = startX - ev.clientX; // Inverted because we're resizing from left
+                  const newWidth = startWidth + dx;
+                  useUiStore.getState().setRightPanelWidth(newWidth);
+                };
+                
+                const onUp = () => {
+                  window.removeEventListener("mousemove", onMove);
+                  window.removeEventListener("mouseup", onUp);
+                  document.body.style.cursor = "";
+                  document.body.style.userSelect = "";
+                };
+                
+                window.addEventListener("mousemove", onMove);
+                window.addEventListener("mouseup", onUp);
+                document.body.style.cursor = "col-resize";
+                document.body.style.userSelect = "none";
+              }}
+              title="Drag to resize"
+            />
+          )}
+          
           <div
             className="absolute left-0 top-0 h-full w-2 z-10 cursor-pointer"
             aria-hidden="true"
