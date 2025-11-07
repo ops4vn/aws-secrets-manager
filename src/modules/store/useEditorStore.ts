@@ -47,6 +47,7 @@ type Actions = {
   // tabs
   openTab: (secretId: string, content: string, isBinary: boolean, meta?: { isTooLarge?: boolean; binarySize?: number }) => string;
   closeTab: (tabId: string) => void;
+  closeOtherTabs: (tabId: string) => void;
   switchTab: (tabId: string) => void;
 
   // init
@@ -339,6 +340,36 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
       isCreatingNew: false,
       fetchedBinaryTooLarge: tooLarge,
     });
+  },
+
+  closeOtherTabs: (tabId: string) => {
+    const st = get();
+    const tabToKeep = st.tabs.find(t => t.id === tabId);
+    if (!tabToKeep) return;
+
+    const newTabs = [tabToKeep];
+    set({
+      tabs: newTabs,
+      activeTabId: tabId,
+      secretId: tabToKeep.secretId,
+      editorContent: tabToKeep.content,
+      isBinary: tabToKeep.isBinary,
+      isEditing: false,
+      isCreatingNew: false,
+    });
+
+    let tooLarge: { name: string; size: number } | null = null;
+    if (tabToKeep.isBinary) {
+      if (tabToKeep.isTooLarge && tabToKeep.binarySize) {
+        tooLarge = { name: tabToKeep.secretId, size: tabToKeep.binarySize };
+      } else if (tabToKeep.content) {
+        const sizeBytes = st._computeBase64Size(tabToKeep.content);
+        if (sizeBytes > 50 * 1024) {
+          tooLarge = { name: tabToKeep.secretId, size: tabToKeep.binarySize ?? 0 };
+        }
+      }
+    }
+    set({ fetchedBinaryTooLarge: tooLarge });
   },
 
   switchTab: (tabId: string) => {

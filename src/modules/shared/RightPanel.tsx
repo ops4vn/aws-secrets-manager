@@ -69,7 +69,7 @@ export function RightPanel() {
   );
 
   return (
-    <div className="flex flex-col gap-3" ref={panelRef}>
+    <div className="flex flex-col" ref={panelRef}>
       <div className="sticky top-0 z-20 bg-base-100/95 supports-backdrop-filter:bg-base-100/80 backdrop-blur border-base-300 py-2">
         <div className="flex items-center justify-between">
           <h2 className="text-primary text-md font-semibold">Secrets</h2>

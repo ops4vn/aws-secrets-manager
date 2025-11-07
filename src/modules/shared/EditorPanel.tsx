@@ -42,10 +42,24 @@ export function EditorPanel() {
     bindEvents,
   } = useEditorStore();
 
-  const [isDarkTheme, setIsDarkTheme] = useState<boolean>(
-    typeof document !== "undefined" &&
-      document.documentElement?.dataset?.theme === "dark"
-  );
+  // Dark themes that should use oneDark theme for CodeMirror
+  const DARK_THEMES = ["dark", "dracula", "dim"];
+
+  const checkIsDarkTheme = (): boolean => {
+    if (typeof document === "undefined") return false;
+    const theme = document.documentElement?.dataset?.theme;
+    if (!theme) return false;
+    
+    // Check if theme is in dark themes list
+    if (DARK_THEMES.includes(theme)) return true;
+    
+    // Fallback: check color-scheme CSS property
+    const computedStyle = window.getComputedStyle(document.documentElement);
+    const colorScheme = computedStyle.colorScheme;
+    return colorScheme === "dark";
+  };
+
+  const [isDarkTheme, setIsDarkTheme] = useState<boolean>(checkIsDarkTheme());
   const [wrap, setWrap] = useState<boolean>(false);
   const [isDecoded, setIsDecoded] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -54,7 +68,7 @@ export function EditorPanel() {
     if (typeof document === "undefined") return;
     const el = document.documentElement;
     const handler = () => {
-      setIsDarkTheme(el.dataset?.theme === "dark");
+      setIsDarkTheme(checkIsDarkTheme());
     };
     const observer = new MutationObserver(handler);
     observer.observe(el, { attributes: true, attributeFilter: ["data-theme"] });
@@ -309,6 +323,7 @@ export function EditorPanel() {
         isCreatingNew={isCreatingNew}
         switchTab={switchTab}
         closeTab={closeTab}
+        closeOtherTabs={useEditorStore.getState().closeOtherTabs}
         getTabDisplayName={getTabDisplayName}
         isProdSecret={isProdSecret}
       />

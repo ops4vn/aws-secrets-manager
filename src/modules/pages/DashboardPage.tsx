@@ -131,7 +131,7 @@ export function DashboardPage() {
           <aside
             className={`bg-base-100 border-l border-base-300 pt-0 h-full overflow-y-auto overflow-x-hidden transition-opacity duration-300 ease-in-out ${
               rightPanelOpen
-                ? "opacity-100 p-4"
+                ? "opacity-100 px-4 py-2"
                 : "opacity-0 p-0 pointer-events-none"
             }`}
             aria-hidden={!rightPanelOpen}
