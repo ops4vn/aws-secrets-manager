@@ -183,7 +183,7 @@ export function TopBar() {
         >
           <Upload className="h-4 w-4 mr-1" /> Import
         </button>
-        <KeyboardShortcutsHelp />
+        {/* <KeyboardShortcutsHelp /> */}
       </div>
       <input
         ref={fileInputRef}
