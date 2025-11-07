@@ -1,5 +1,5 @@
 import { Edit3, LockOpen, Plus, Upload } from "lucide-react";
-import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
+// import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
 import { useProfileStore } from "../store/useProfileStore";
 import { useEditorStore } from "../store/useEditorStore";
 import { useRef } from "react";

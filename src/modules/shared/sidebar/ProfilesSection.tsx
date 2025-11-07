@@ -28,30 +28,42 @@ export function ProfilesSection() {
         )}
       </div>
       <div className="collapse-content">
-        <div className="form-control w-full">
-          <label className="label py-1">
-            <span className="label-text text-xs">Select profile</span>
-          </label>
-          <div className="flex items-center gap-2">
-            <select
-              className="select select-bordered select-sm flex-1"
-              value={selectedProfile ?? defaultProfile ?? "default"}
-              onChange={(e) => setSelectedProfile(e.target.value)}
-            >
-              {profiles.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => saveDefault()}
-            >
-              <Star className="h-4 w-4 mr-1" /> Set default
-            </button>
+        {profiles.length === 0 ? (
+          <div className="p-3 text-xs text-base-content/70">
+            <p className="mb-2">
+              No AWS profiles found. Please configure AWS CLI profiles first.
+            </p>
+            <p className="text-xs opacity-70">
+              Run <code className="bg-base-200 px-1 rounded">aws configure --profile &lt;name&gt;</code> to create a profile.
+            </p>
           </div>
-        </div>
+        ) : (
+          <div className="form-control w-full">
+            <label className="label py-1">
+              <span className="label-text text-xs">Select profile</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <select
+                className="select select-bordered select-sm flex-1"
+                value={selectedProfile ?? defaultProfile ?? profiles[0] ?? ""}
+                onChange={(e) => setSelectedProfile(e.target.value)}
+              >
+                {profiles.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => saveDefault()}
+                disabled={!selectedProfile && !defaultProfile}
+              >
+                <Star className="h-4 w-4 mr-1" /> Set default
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -37,28 +37,47 @@ export const useProfileStore = create<State & Actions>((set, get) => ({
   },
 
   initLoad: async (onSecretsLoad) => {
-    const { pushError, pushSuccess } = useLogsStore.getState();
+    const { pushError, pushSuccess, pushWarn, pushInfo } = useLogsStore.getState();
     try {
       const df = await api.loadDefaultProfile();
       set({ defaultProfile: df });
       const ps = await api.loadProfiles();
       set({ profiles: ps });
       
-      if (df) {
-        const cached = await api.loadCachedSecretNames(df);
+      // Auto-select profile if none is selected
+      const st = get();
+      if (!st.selectedProfile) {
+        if (df && ps.includes(df)) {
+          // Use default profile if it exists in profiles list
+          set({ selectedProfile: df });
+          pushInfo(`Auto-selected default profile: ${df}`);
+        } else if (ps.length > 0) {
+          // Use first available profile
+          set({ selectedProfile: ps[0] });
+          pushInfo(`Auto-selected profile: ${ps[0]}`);
+        } else {
+          // No profiles available
+          pushWarn("No AWS profiles found. Please configure AWS CLI profiles first.");
+        }
+      }
+      
+      // Load cached secrets for the selected/default profile
+      const profileToUse = st.selectedProfile ?? df;
+      if (profileToUse) {
+        const cached = await api.loadCachedSecretNames(profileToUse);
         if (cached && cached.length > 0) {
           pushSuccess(`Loaded ${cached.length} cached secrets`);
           
           // Callback để load secrets list vào SecretsListStore
           if (onSecretsLoad) {
-            await onSecretsLoad(df);
+            await onSecretsLoad(profileToUse);
           }
         }
       }
 
       // Bind event listeners once
-      const st = get();
-      if (!st._eventsBound) {
+      const st2 = get();
+      if (!st2._eventsBound) {
         void listen<string>("sso_login_ok", async (ev) => {
           set({ ssoValid: true, ssoChecking: false });
           pushSuccess(`SSO login ok${ev.payload ? ` for ${ev.payload}` : ""}`);
@@ -71,10 +90,10 @@ export const useProfileStore = create<State & Actions>((set, get) => ({
         set({ _eventsBound: true });
       }
 
-      // Initial SSO check on app start
-      const st2 = get();
-      if (st2.selectedProfile ?? st2.defaultProfile) {
-        void st2.checkSsoFlow();
+      // Initial SSO check on app start (only if we have a profile)
+      const st3 = get();
+      if (st3.selectedProfile ?? st3.defaultProfile) {
+        void st3.checkSsoFlow();
       }
     } catch (e) {
       pushError(`Init error: ${String(e)}`);
