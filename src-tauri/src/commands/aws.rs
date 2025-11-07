@@ -307,6 +307,26 @@ pub async fn update_secret(
 }
 
 #[tauri::command]
+pub async fn delete_secret(profile: Option<String>, secret_id: String) -> Result<String, String> {
+    let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
+    if let Some(p) = profile {
+        loader = loader.profile_name(p);
+    }
+    let config = loader.load().await;
+    let client = aws_sdk_secretsmanager::Client::new(&config);
+    let resp = client
+        .delete_secret()
+        .secret_id(&secret_id)
+        .send()
+        .await
+        .map_err(|e| format_delete_error(&e, &secret_id))?;
+    Ok(format!(
+        "Deleted secret: {}",
+        resp.name().unwrap_or("unknown")
+    ))
+}
+
+#[tauri::command]
 pub async fn check_sso(profile: String) -> Result<bool, String> {
     let loader = aws_config::defaults(aws_config::BehaviorVersion::latest()).profile_name(profile);
     let config = loader.load().await;
@@ -451,6 +471,29 @@ fn format_list_error(
                 "{code}: {}",
                 err.message().unwrap_or("Unknown service error")
             )
+        }
+        SdkError::DispatchFailure(df) => format!("Network/dispatch error: {df:?}"),
+        SdkError::TimeoutError(te) => format!("Request timed out: {te:?}"),
+        other => format!("SDK error: {other:?}"),
+    }
+}
+
+fn format_delete_error(
+    e: &SdkError<aws_sdk_secretsmanager::operation::delete_secret::DeleteSecretError, HttpResponse>,
+    secret_id: &str,
+) -> String {
+    match e {
+        SdkError::ServiceError(se) => {
+            let err = se.err();
+            let code = err.code().unwrap_or("");
+            match code {
+                "ResourceNotFoundException" => format!("Secret '{secret_id}' does not exist"),
+                "InvalidParameterException" => "Invalid parameter when deleting secret".to_string(),
+                _ => format!(
+                    "{code}: {}",
+                    err.message().unwrap_or("Unknown service error")
+                ),
+            }
         }
         SdkError::DispatchFailure(df) => format!("Network/dispatch error: {df:?}"),
         SdkError::TimeoutError(te) => format!("Request timed out: {te:?}"),

@@ -398,6 +398,7 @@ export function EditorPanel() {
               onSave={handleSave}
               onCancel={() => {
                 setImportedBinary(null);
+                setSecretId("");
                 setIsBinary(false);
                 handleCancel();
               }}

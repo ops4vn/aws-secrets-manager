@@ -33,6 +33,7 @@ pub fn run() {
             commands::aws::fetch_secret_async,
             commands::aws::create_secret,
             commands::aws::update_secret,
+            commands::aws::delete_secret,
             commands::aws::check_sso,
             // cache metadata
             commands::config::load_cached_secret_metadata,

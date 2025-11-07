@@ -1,8 +1,12 @@
-import { Edit3, LockOpen, Plus, Upload } from "lucide-react";
+import { Edit3, LockOpen, Plus, Upload, Trash2 } from "lucide-react";
 // import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
 import { useProfileStore } from "../store/useProfileStore";
 import { useEditorStore } from "../store/useEditorStore";
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { api } from "../services/tauriApi";
+import { useLogsStore } from "../store/useLogsStore";
+import { useSecretsListStore } from "../store/useSecretsListStore";
+import { Modal } from "./components/Modal";
 
 export function TopBar() {
   const { selectedProfile, defaultProfile } = useProfileStore();
@@ -11,6 +15,8 @@ export function TopBar() {
     setSecretId,
     isEditing,
     isCreatingNew,
+    activeTabId,
+    closeTab,
     fetchSecretById,
     startEdit: startEditEditor,
     startCreateNew: startCreateNewEditor,
@@ -18,6 +24,9 @@ export function TopBar() {
     setIsBinary,
     setImportedBinary,
   } = useEditorStore();
+  const { pushInfo, pushError, pushSuccess } = useLogsStore();
+  const { listSecrets } = useSecretsListStore();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -110,6 +119,38 @@ export function TopBar() {
       fileInputRef.current.value = "";
     }
   };
+
+  const handleDeleteClick = () => {
+    if (!activeTabId || !secretId) return;
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!activeTabId || !secretId) return;
+    
+    const profile = selectedProfile ?? defaultProfile;
+    if (!profile) {
+      pushError("No profile selected");
+      setShowDeleteModal(false);
+      return;
+    }
+
+    try {
+      pushInfo(`Deleting secret: ${secretId}`);
+      await api.deleteSecret(profile, secretId);
+      pushSuccess(`Deleted secret: ${secretId}`);
+      
+      // Close the tab after deletion
+      closeTab(activeTabId);
+      setShowDeleteModal(false);
+      
+      // Force reload secrets list
+      await listSecrets(profile, true);
+    } catch (error) {
+      pushError(`Failed to delete secret: ${String(error)}`);
+      setShowDeleteModal(false);
+    }
+  };
   return (
     <div className="navbar bg-base-100 border-b border-base-300 px-4 gap-4">
       <div className="flex flex-1 items-center gap-3">
@@ -168,6 +209,20 @@ export function TopBar() {
           <Edit3 className="h-4 w-4 mr-1" /> Edit
         </button>
         <button
+          className="btn btn-sm btn-error text-white"
+          disabled={isEditing || !activeTabId}
+          title={
+            !activeTabId
+              ? "Select a secret tab to delete"
+              : isEditing
+              ? "Cancel edit first to delete"
+              : ""
+          }
+          onClick={handleDeleteClick}
+        >
+          <Trash2 className="h-4 w-4 mr-1" /> Delete
+        </button>
+        <button
           className="btn btn-sm"
           disabled={isEditing}
           title={isEditing ? "Finish current edit first" : ""}
@@ -192,6 +247,33 @@ export function TopBar() {
         className="hidden"
         onChange={handleFileSelect}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete secret?"
+        actions={
+          <>
+            <button
+              className="btn btn-error"
+              onClick={confirmDelete}
+            >
+              Delete
+            </button>
+            <button
+              className="btn"
+              onClick={() => setShowDeleteModal(false)}
+            >
+              Cancel
+            </button>
+          </>
+        }
+      >
+        <p>
+          Are you sure you want to delete secret <strong>"{secretId}"</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

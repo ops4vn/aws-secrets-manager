@@ -32,6 +32,10 @@ export const api = {
     description?: string | null,
     isBinary?: boolean,
   ) => invoke<string>("update_secret", { profile: profile ?? null, secretId, secretValue, description: description ?? null, isBinary: isBinary ?? false }),
+  deleteSecret: (
+    profile: string | null | undefined,
+    secretId: string,
+  ) => invoke<string>("delete_secret", { profile: profile ?? null, secretId }),
   checkSso: (profile: string) => invoke<boolean>("check_sso", { profile }),
   triggerSsoLogin: (profile: string) => invoke<boolean>("trigger_sso_login", { profile }),
   loadTheme: () => invoke<string | null>("load_theme"),

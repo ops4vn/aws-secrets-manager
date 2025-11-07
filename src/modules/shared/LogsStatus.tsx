@@ -1,23 +1,15 @@
-import { Copy, Trash2 } from "lucide-react";
+import { Copy } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLogsStore } from "../store/useLogsStore";
-import { useEditorStore } from "../store/useEditorStore";
 
 export function LogsStatus() {
   const { logs, clearLogs, autoScrollLogs, setAutoScrollLogs, pushLog } =
     useLogsStore();
-  const { isCreatingNew, secretId } = useEditorStore();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [levelFilter, setLevelFilter] = useState<
     "all" | "info" | "warn" | "error" | "debug" | "success"
   >("all");
   const [textFilter, setTextFilter] = useState<string>("");
-
-  const canDelete = !isCreatingNew && !!secretId;
-
-  const handleDelete = () => {
-    pushLog("[WARN] Delete clicked (not implemented)");
-  };
 
   const getLevel = (
     line: string
@@ -124,23 +116,6 @@ export function LogsStatus() {
         <button className="btn btn-ghost btn-xs ml-2" onClick={clearLogs}>
           Clear
         </button>
-        <div className="ml-auto" />
-        {canDelete ? (
-          <button
-            className="btn btn-error btn-sm text-white"
-            onClick={handleDelete}
-          >
-            <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-          </button>
-        ) : (
-          <button
-            className="btn btn-error btn-sm text-white"
-            disabled
-            title="Cannot delete while creating new secret"
-          >
-            <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-          </button>
-        )}
       </div>
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 min-h-0">
         {filteredLogs.map((line, idx) => (

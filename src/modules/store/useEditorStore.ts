@@ -251,27 +251,38 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
 
   save: async (profile: string | null) => {
     const st = get();
-    const { pushInfo, pushSuccess } = useLogsStore.getState();
+    const { pushInfo, pushSuccess, pushError } = useLogsStore.getState();
+    const { listSecrets } = useSecretsListStore.getState();
     pushInfo((st.isCreatingNew ? "Creating" : "Updating") + ` secret: ${st.secretId}`);
-    if (st.isCreatingNew) {
-      const payload = st.isBinary ? (st.importedBinary?.base64 ?? st.editorContent) : st.editorContent;
-      await api.createSecret(profile, st.secretId, payload, null, st.isBinary);
-      pushSuccess("Created secret");
-    } else {
-      const payload = st.isBinary ? (st.importedBinary?.base64 ?? st.editorContent) : st.editorContent;
-      await api.updateSecret(profile, st.secretId, payload, null, st.isBinary);
-      pushSuccess("Updated secret");
-    }
+    
+    try {
+      if (st.isCreatingNew) {
+        const payload = st.isBinary ? (st.importedBinary?.base64 ?? st.editorContent) : st.editorContent;
+        await api.createSecret(profile, st.secretId, payload, null, st.isBinary);
+        pushSuccess("Created secret");
+        
+        // Force reload secrets list after creating new secret
+        await listSecrets(profile, true);
+      } else {
+        const payload = st.isBinary ? (st.importedBinary?.base64 ?? st.editorContent) : st.editorContent;
+        await api.updateSecret(profile, st.secretId, payload, null, st.isBinary);
+        pushSuccess("Updated secret");
+      }
 
-    // Cập nhật content trong tab sau khi save
-    if (st.activeTabId) {
-      const updatedTabs = st.tabs.map(t =>
-        t.id === st.activeTabId ? { ...t, content: st.editorContent, isBinary: st.isBinary } : t
-      );
-      set({ tabs: updatedTabs });
-    }
+      // Cập nhật content trong tab sau khi save
+      if (st.activeTabId) {
+        const updatedTabs = st.tabs.map(t =>
+          t.id === st.activeTabId ? { ...t, content: st.editorContent, isBinary: st.isBinary } : t
+        );
+        set({ tabs: updatedTabs });
+      }
 
-    set({ isEditing: false, isCreatingNew: false, importedBinary: null });
+      set({ isEditing: false, isCreatingNew: false, importedBinary: null });
+    } catch (error) {
+      const errorMsg = typeof error === 'string' ? error : (error as any)?.message ?? String(error);
+      pushError(`Failed to ${st.isCreatingNew ? 'create' : 'update'} secret: ${errorMsg}`);
+      // Không reset editing state khi có lỗi để user có thể sửa và thử lại
+    }
   },
 
   cancelEdit: () => {
