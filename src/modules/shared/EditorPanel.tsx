@@ -363,6 +363,8 @@ export function EditorPanel() {
             <BinaryTooLargePanel
               name={fetchedBinaryTooLarge.name}
               size={fetchedBinaryTooLarge.size}
+              secretId={useEditorStore.getState().secretId}
+              profile={selectedProfile ?? defaultProfile}
             />
           ) : isEditing ? (
             <div className="border border-base-300 rounded-md overflow-hidden flex-1 min-h-0">

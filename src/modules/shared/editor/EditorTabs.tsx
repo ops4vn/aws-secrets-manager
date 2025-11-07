@@ -161,9 +161,18 @@ export function EditorTabs({
             Close tab
           </button>
           <button
-            className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2"
-            onClick={() => handleCloseOtherTabs(contextMenu.tabId)}
+            className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+              tabs.length <= 1
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-base-200"
+            }`}
+            onClick={() => {
+              if (tabs.length > 1) {
+                handleCloseOtherTabs(contextMenu.tabId);
+              }
+            }}
             disabled={tabs.length <= 1}
+            title={tabs.length <= 1 ? "Only one tab open" : "Close other tabs"}
           >
             <X className="h-4 w-4" />
             Close other tabs
