@@ -314,6 +314,7 @@ pub async fn delete_secret(profile: Option<String>, secret_id: String) -> Result
     }
     let config = loader.load().await;
     let client = aws_sdk_secretsmanager::Client::new(&config);
+    // Không force delete, giữ recovery window mặc định (30 ngày)
     let resp = client
         .delete_secret()
         .secret_id(&secret_id)
@@ -322,6 +323,59 @@ pub async fn delete_secret(profile: Option<String>, secret_id: String) -> Result
         .map_err(|e| format_delete_error(&e, &secret_id))?;
     Ok(format!(
         "Deleted secret: {}",
+        resp.name().unwrap_or("unknown")
+    ))
+}
+
+#[tauri::command]
+pub async fn list_deleted_secrets(profile: Option<String>) -> Result<Vec<String>, String> {
+    let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
+    if let Some(p) = profile {
+        loader = loader.profile_name(p);
+    }
+    let config = loader.load().await;
+    let client = aws_sdk_secretsmanager::Client::new(&config);
+
+    let mut out = Vec::new();
+    let mut next: Option<String> = None;
+    loop {
+        let mut req = client.list_secrets().max_results(100);
+        if let Some(token) = next {
+            req = req.next_token(token);
+        }
+        let resp = req.send().await.map_err(|e| format_list_error(&e))?;
+        for s in resp.secret_list() {
+            // Chỉ lấy các secret đã bị xóa (có deletion_date)
+            if s.deleted_date().is_some() {
+                if let Some(n) = s.name() {
+                    out.push(n.to_string());
+                }
+            }
+        }
+        next = resp.next_token().map(|s| s.to_string());
+        if next.is_none() {
+            break;
+        }
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub async fn restore_secret(profile: Option<String>, secret_id: String) -> Result<String, String> {
+    let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
+    if let Some(p) = profile {
+        loader = loader.profile_name(p);
+    }
+    let config = loader.load().await;
+    let client = aws_sdk_secretsmanager::Client::new(&config);
+    let resp = client
+        .restore_secret()
+        .secret_id(&secret_id)
+        .send()
+        .await
+        .map_err(|e| format_restore_error(&e, &secret_id))?;
+    Ok(format!(
+        "Restored secret: {}",
         resp.name().unwrap_or("unknown")
     ))
 }
@@ -489,6 +543,39 @@ fn format_delete_error(
             match code {
                 "ResourceNotFoundException" => format!("Secret '{secret_id}' does not exist"),
                 "InvalidParameterException" => "Invalid parameter when deleting secret".to_string(),
+                _ => format!(
+                    "{code}: {}",
+                    err.message().unwrap_or("Unknown service error")
+                ),
+            }
+        }
+        SdkError::DispatchFailure(df) => format!("Network/dispatch error: {df:?}"),
+        SdkError::TimeoutError(te) => format!("Request timed out: {te:?}"),
+        other => format!("SDK error: {other:?}"),
+    }
+}
+
+fn format_restore_error(
+    e: &SdkError<
+        aws_sdk_secretsmanager::operation::restore_secret::RestoreSecretError,
+        HttpResponse,
+    >,
+    secret_id: &str,
+) -> String {
+    match e {
+        SdkError::ServiceError(se) => {
+            let err = se.err();
+            let code = err.code().unwrap_or("");
+            match code {
+                "ResourceNotFoundException" => {
+                    format!("Secret '{secret_id}' does not exist or is not in deleted state")
+                }
+                "InvalidParameterException" => {
+                    "Invalid parameter when restoring secret".to_string()
+                }
+                "InvalidRequestException" => format!(
+                    "Secret '{secret_id}' cannot be restored (recovery window may have expired)"
+                ),
                 _ => format!(
                     "{code}: {}",
                     err.message().unwrap_or("Unknown service error")

@@ -7,12 +7,14 @@ type State = {
   secretMetadata: Record<string, boolean>; // name -> is_binary
   showSecretsTree: boolean;
   searchQuery: string;
+  deletedSecrets: string[];
 };
 
 type Actions = {
   setShowSecretsTree: (v: boolean) => void;
   setSearchQuery: (q: string) => void;
   listSecrets: (profile: string | null, force?: boolean) => Promise<void>;
+  listDeletedSecrets: (profile: string | null) => Promise<void>;
   updateSecretMetadata: (profile: string | null, secretId: string, isBinary: boolean) => Promise<void>;
 };
 
@@ -21,6 +23,7 @@ export const useSecretsListStore = create<State & Actions>((set, get) => ({
   secretMetadata: {},
   showSecretsTree: false,
   searchQuery: "",
+  deletedSecrets: [],
 
   setShowSecretsTree: (v) => set({ showSecretsTree: v }),
   setSearchQuery: (q) => set({ searchQuery: q }),
@@ -54,6 +57,23 @@ export const useSecretsListStore = create<State & Actions>((set, get) => ({
     await api.saveCachedSecretNames(profile, names);
     set({ allNames: names });
     pushSuccess(`Loaded ${names.length} secrets`);
+  },
+
+  listDeletedSecrets: async (profile) => {
+    const { pushInfo, pushError, pushSuccess } = useLogsStore.getState();
+    if (!profile) {
+      pushError("No profile selected");
+      return;
+    }
+    try {
+      pushInfo("Loading deleted secrets...");
+      const deleted = await api.listDeletedSecrets(profile);
+      set({ deletedSecrets: deleted });
+      pushSuccess(`Loaded ${deleted.length} deleted secrets`);
+    } catch (error) {
+      pushError(`Failed to load deleted secrets: ${String(error)}`);
+      set({ deletedSecrets: [] });
+    }
   },
 
   updateSecretMetadata: async (profile, secretId, isBinary) => {

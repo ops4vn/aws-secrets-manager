@@ -36,6 +36,11 @@ export const api = {
     profile: string | null | undefined,
     secretId: string,
   ) => invoke<string>("delete_secret", { profile: profile ?? null, secretId }),
+  listDeletedSecrets: (profile?: string | null) => invoke<string[]>("list_deleted_secrets", { profile: profile ?? null }),
+  restoreSecret: (
+    profile: string | null | undefined,
+    secretId: string,
+  ) => invoke<string>("restore_secret", { profile: profile ?? null, secretId }),
   checkSso: (profile: string) => invoke<boolean>("check_sso", { profile }),
   triggerSsoLogin: (profile: string) => invoke<boolean>("trigger_sso_login", { profile }),
   loadTheme: () => invoke<string | null>("load_theme"),

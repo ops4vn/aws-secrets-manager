@@ -25,7 +25,7 @@ export function TopBar() {
     setImportedBinary,
   } = useEditorStore();
   const { pushInfo, pushError, pushSuccess } = useLogsStore();
-  const { listSecrets } = useSecretsListStore();
+  const { listSecrets, listDeletedSecrets } = useSecretsListStore();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -144,8 +144,9 @@ export function TopBar() {
       closeTab(activeTabId);
       setShowDeleteModal(false);
       
-      // Force reload secrets list
+      // Force reload secrets list và deleted secrets
       await listSecrets(profile, true);
+      await listDeletedSecrets(profile);
     } catch (error) {
       pushError(`Failed to delete secret: ${String(error)}`);
       setShowDeleteModal(false);

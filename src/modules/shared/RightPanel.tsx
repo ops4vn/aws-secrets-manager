@@ -5,11 +5,15 @@ import {
   XCircle,
   RefreshCcw,
   LockOpen,
+  RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProfileStore } from "../store/useProfileStore";
 import { useSecretsListStore } from "../store/useSecretsListStore";
 import { useEditorStore } from "../store/useEditorStore";
+import { api } from "../services/tauriApi";
+import { useLogsStore } from "../store/useLogsStore";
 
 export function RightPanel() {
   const { selectedProfile, defaultProfile } = useProfileStore();
@@ -18,14 +22,19 @@ export function RightPanel() {
     setSearchQuery,
     allNames,
     secretMetadata,
+    deletedSecrets,
     listSecrets,
+    listDeletedSecrets,
   } = useSecretsListStore();
   const { fetchSecretById, setSecretId } = useEditorStore();
+  const { pushInfo, pushError, pushSuccess } = useLogsStore();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [localQuery, setLocalQuery] = useState<string>(searchQuery);
   const [showSearch, setShowSearch] = useState<boolean>(false);
+  const [showDeleted, setShowDeleted] = useState<boolean>(false);
   const trimmed = useMemo(() => localQuery.trim(), [localQuery]);
+  const profile = selectedProfile ?? defaultProfile;
 
   useEffect(() => {
     setLocalQuery(searchQuery);
@@ -35,6 +44,12 @@ export function RightPanel() {
     const id = setTimeout(() => setSearchQuery(localQuery), 250);
     return () => clearTimeout(id);
   }, [localQuery, setSearchQuery]);
+
+  useEffect(() => {
+    if (profile && showDeleted) {
+      listDeletedSecrets(profile);
+    }
+  }, [profile, showDeleted, listDeletedSecrets]);
 
   const results = trimmed
     ? allNames.filter((n) => n.toLowerCase().includes(trimmed.toLowerCase()))
@@ -66,6 +81,28 @@ export function RightPanel() {
       selectedProfile,
       defaultProfile,
     ]
+  );
+
+  const handleRestore = useCallback(
+    async (secretId: string) => {
+      if (!profile) {
+        pushError("No profile selected");
+        return;
+      }
+      try {
+        pushInfo(`Restoring secret: ${secretId}`);
+        await api.restoreSecret(profile, secretId);
+        pushSuccess(`Restored secret: ${secretId}`);
+        
+        // Reload deleted secrets và active secrets
+        await listDeletedSecrets(profile);
+        await listSecrets(profile, true);
+      } catch (error) {
+        const errorMsg = typeof error === 'string' ? error : (error as any)?.message ?? String(error);
+        pushError(`Failed to restore secret: ${errorMsg}`);
+      }
+    },
+    [profile, pushInfo, pushError, pushSuccess, listDeletedSecrets, listSecrets]
   );
 
   return (
@@ -104,9 +141,24 @@ export function RightPanel() {
               onClick={() => {
                 const profile = selectedProfile ?? defaultProfile;
                 listSecrets(profile, true);
+                if (showDeleted) {
+                  listDeletedSecrets(profile);
+                }
               }}
             >
               <RefreshCcw className="h-4 w-4" />
+            </button>
+            <button
+              className={`btn btn-ghost btn-xs ${showDeleted ? "btn-active" : ""}`}
+              title="Show deleted secrets"
+              onClick={() => {
+                setShowDeleted(!showDeleted);
+                if (!showDeleted && profile) {
+                  listDeletedSecrets(profile);
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -184,6 +236,42 @@ export function RightPanel() {
               />
             ))}
           </ul>
+          
+          {showDeleted && (
+            <div className="mt-4 border-t border-base-300 pt-4">
+              <div className="flex items-center justify-between mb-2 px-2">
+                <h3 className="text-sm font-semibold text-base-content/70 flex items-center gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  Deleted Secrets ({deletedSecrets.length})
+                </h3>
+              </div>
+              {deletedSecrets.length === 0 ? (
+                <div className="text-xs text-base-content/50 px-2 py-4 text-center">
+                  No deleted secrets
+                </div>
+              ) : (
+                <ul className="menu bg-base-100 rounded-box w-full">
+                  {deletedSecrets.map((name) => (
+                    <li key={name} className="w-full">
+                      <div className="flex items-center gap-2 p-1.5 hover:bg-base-200/60 rounded">
+                        <FileText className="h-3.5 w-3.5 text-base-content/50" />
+                        <span className="text-base-content/50 text-sm flex-1 truncate">
+                          {name}
+                        </span>
+                        <button
+                          className="btn btn-ghost btn-xs text-success"
+                          onClick={() => handleRestore(name)}
+                          title="Restore secret"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
