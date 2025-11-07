@@ -48,7 +48,7 @@ export function DashboardPage() {
   return (
     <div className="flex h-[calc(100vh-40px)] min-h-0 overflow-hidden">
       <aside
-        className={`bg-base-100 border-r border-base-300 overflow-y-auto transition-transform duration-300 ease-in-out ${
+        className={`bg-base-100 border-r border-base-300 transition-transform duration-300 ease-in-out ${
           leftSidebarOpen
             ? "w-96 p-4 translate-x-0"
             : "w-0 -translate-x-full p-0"
@@ -56,7 +56,7 @@ export function DashboardPage() {
         aria-hidden={!leftSidebarOpen}
       >
         <div
-          className={`${
+          className={`h-full flex flex-col ${
             leftSidebarOpen ? "opacity-100" : "opacity-0"
           } transition-opacity duration-200`}
         >

@@ -1,20 +1,12 @@
 import { Outlet } from "react-router-dom";
-import { Menu, Moon, Sun } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useEffect, useState } from "react";
-import { api } from "../services/tauriApi";
 import { useUiStore } from "../store/useUiStore";
 import { platform } from "@tauri-apps/plugin-os";
+import { ThemeToggle } from "../shared/components/ThemeToggle";
 
 export function MainLayout() {
-  const [theme, setTheme] = useState<string | null>(null);
   const [isMac, setIsMac] = useState(false);
-
-  const toggleTheme = async (checked: boolean) => {
-    const next = checked ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", next);
-    setTheme(next);
-    await api.saveTheme(next);
-  };
 
   useEffect(() => {
     const checkPlatform = async () => {
@@ -22,16 +14,6 @@ export function MainLayout() {
       setIsMac(platformName === "macos");
     };
     checkPlatform();
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      const t = await api.loadTheme();
-      if (t) {
-        document.documentElement.setAttribute("data-theme", t);
-        setTheme(t);
-      }
-    })();
   }, []);
 
   return (
@@ -50,17 +32,7 @@ export function MainLayout() {
           </div>
         </div>
         <div className="flex-none gap-1">
-          <label className="swap swap-rotate btn btn-ghost btn-sm btn-square h-8 w-8 min-h-0">
-            <input
-              type="checkbox"
-              className="theme-controller"
-              value="dark"
-              checked={theme === "dark"}
-              onChange={(e) => toggleTheme(e.target.checked)}
-            />
-            <Sun className="swap-off h-4 w-4" />
-            <Moon className="swap-on h-4 w-4" />
-          </label>
+          <ThemeToggle />
         </div>
       </div>
 
