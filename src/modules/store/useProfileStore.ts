@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../services/tauriApi";
+import { useLogsStore } from "./useLogsStore";
 
 type State = {
   profiles: string[];
@@ -12,11 +13,11 @@ type State = {
 };
 
 type Actions = {
-  initLoad: (pushError: (msg: string) => void, pushSuccess: (msg: string) => void, onSecretsLoad?: (profile: string) => Promise<void>) => Promise<void>;
+  initLoad: (onSecretsLoad?: (profile: string) => Promise<void>) => Promise<void>;
   setSelectedProfile: (p: string | null) => void;
-  saveDefault: (pushSuccess: (msg: string) => void) => Promise<void>;
-  checkSsoFlow: (pushWarn: (msg: string) => void, pushInfo: (msg: string) => void, pushSuccess: (msg: string) => void, pushError: (msg: string) => void) => Promise<boolean>;
-  triggerSsoLogin: (pushWarn: (msg: string) => void, pushInfo: (msg: string) => void, pushError: (msg: string) => void) => Promise<void>;
+  saveDefault: () => Promise<void>;
+  checkSsoFlow: () => Promise<boolean>;
+  triggerSsoLogin: () => Promise<void>;
 };
 
 export const useProfileStore = create<State & Actions>((set, get) => ({
@@ -29,7 +30,8 @@ export const useProfileStore = create<State & Actions>((set, get) => ({
 
   setSelectedProfile: (p) => set({ selectedProfile: p }),
 
-  initLoad: async (pushError, pushSuccess, onSecretsLoad) => {
+  initLoad: async (onSecretsLoad) => {
+    const { pushError, pushSuccess } = useLogsStore.getState();
     try {
       const df = await api.loadDefaultProfile();
       set({ defaultProfile: df });
@@ -66,22 +68,24 @@ export const useProfileStore = create<State & Actions>((set, get) => ({
       // Initial SSO check on app start
       const st2 = get();
       if (st2.selectedProfile ?? st2.defaultProfile) {
-        void st2.checkSsoFlow(() => {}, () => {}, pushSuccess, pushError);
+        void st2.checkSsoFlow();
       }
     } catch (e) {
       pushError(`Init error: ${String(e)}`);
     }
   },
 
-  saveDefault: async (pushSuccess) => {
+  saveDefault: async () => {
     const st = get();
+    const { pushSuccess } = useLogsStore.getState();
     await api.saveDefaultProfile(st.selectedProfile ?? "default");
     set({ defaultProfile: st.selectedProfile });
     pushSuccess("Saved default profile");
   },
 
-  checkSsoFlow: async (pushWarn, pushInfo, pushSuccess, pushError) => {
+  checkSsoFlow: async () => {
     const st = get();
+    const { pushWarn, pushInfo, pushSuccess, pushError } = useLogsStore.getState();
     const profile = st.selectedProfile ?? st.defaultProfile;
     if (!profile) {
       pushWarn("No profile selected");
@@ -107,8 +111,9 @@ export const useProfileStore = create<State & Actions>((set, get) => ({
     }
   },
 
-  triggerSsoLogin: async (pushWarn, pushInfo, pushError) => {
+  triggerSsoLogin: async () => {
     const st = get();
+    const { pushWarn, pushInfo, pushError } = useLogsStore.getState();
     const profile = st.selectedProfile ?? st.defaultProfile;
     if (!profile) {
       pushWarn("No profile selected");

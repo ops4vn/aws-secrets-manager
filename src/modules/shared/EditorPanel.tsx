@@ -5,10 +5,7 @@ import { EditorView } from "@codemirror/view";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { Upload } from "lucide-react";
 import { isValidBase64 } from "./utils/base64Utils";
-import { useLogsStore } from "../store/useLogsStore";
 import { useProfileStore } from "../store/useProfileStore";
-import { useSecretsListStore } from "../store/useSecretsListStore";
-import { useBookmarksStore } from "../store/useBookmarksStore";
 import { useEditorStore } from "../store/useEditorStore";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
@@ -20,10 +17,7 @@ import { HighlightedContent } from "./editor/HighlightedContent";
 import type { EditorTab } from "./types";
 
 export function EditorPanel() {
-  const { pushInfo, pushError, pushSuccess } = useLogsStore();
   const { selectedProfile, defaultProfile } = useProfileStore();
-  const { updateSecretMetadata } = useSecretsListStore();
-  const { addToRecent } = useBookmarksStore();
   const {
     tabs,
     activeTabId,
@@ -69,24 +63,8 @@ export function EditorPanel() {
   }, []);
 
   useEffect(() => {
-    const profile = selectedProfile ?? defaultProfile;
-
-    bindEvents(
-      () => {},
-      pushError,
-      pushSuccess,
-      (secretId, isBinary) => updateSecretMetadata(profile, secretId, isBinary),
-      addToRecent
-    );
-  }, [
-    bindEvents,
-    pushError,
-    pushSuccess,
-    updateSecretMetadata,
-    addToRecent,
-    selectedProfile,
-    defaultProfile,
-  ]);
+    bindEvents();
+  }, [bindEvents]);
 
   const viewText = useMemo(() => {
     if (isEditing) return null as string | null;
@@ -154,15 +132,15 @@ export function EditorPanel() {
 
   const handleSave = async () => {
     const profile = selectedProfile ?? defaultProfile;
-    await saveEditor(profile, pushInfo, pushSuccess);
+    await saveEditor(profile);
   };
 
   const handleCancel = () => {
-    cancelEditEditor(pushInfo);
+    cancelEditEditor();
   };
 
   const handleStartCreateNew = () => {
-    startCreateNewEditor(pushInfo);
+    startCreateNewEditor();
   };
 
   const handleExport = async () => {

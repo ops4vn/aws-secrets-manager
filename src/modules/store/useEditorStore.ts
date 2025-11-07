@@ -2,6 +2,10 @@ import { create } from "zustand";
 import { listen } from "@tauri-apps/api/event";
 import { api, SecretContent } from "../services/tauriApi";
 import type { EditorTab } from "../shared/types";
+import { useLogsStore } from "./useLogsStore";
+import { useSecretsListStore } from "./useSecretsListStore";
+import { useBookmarksStore } from "./useBookmarksStore";
+import { useProfileStore } from "./useProfileStore";
 
 type State = {
   // editor
@@ -29,14 +33,14 @@ type State = {
 
 type Actions = {
   // editor actions
-  fetchSecretById: (name: string, profile: string | null, pushInfo: (msg: string) => void, pushError: (msg: string) => void, pushSuccess: (msg: string) => void, updateSecretMetadata: (secretId: string, isBinary: boolean) => Promise<void>, addToRecent: (secretId: string) => Promise<void>) => Promise<void>;
-  startEdit: (pushInfo: (msg: string) => void) => void;
-  startCreateNew: (pushInfo: (msg: string) => void) => void;
+  fetchSecretById: (name: string, profile: string | null) => Promise<void>;
+  startEdit: () => void;
+  startCreateNew: () => void;
   setEditorContent: (v: string) => void;
   setIsBinary: (v: boolean) => void;
   setImportedBinary: (p: { name: string; size: number; base64: string } | null) => void;
-  save: (profile: string | null, pushInfo: (msg: string) => void, pushSuccess: (msg: string) => void) => Promise<void>;
-  cancelEdit: (pushInfo: (msg: string) => void) => void;
+  save: (profile: string | null) => Promise<void>;
+  cancelEdit: () => void;
   setSecretId: (v: string) => void;
   _computeBase64Size: (b64: string) => number;
 
@@ -46,7 +50,7 @@ type Actions = {
   switchTab: (tabId: string) => void;
 
   // init
-  bindEvents: (pushWarn: (msg: string) => void, pushError: (msg: string) => void, pushSuccess: (msg: string) => void, updateSecretMetadata: (secretId: string, isBinary: boolean) => Promise<void>, addToRecent: (secretId: string) => Promise<void>) => void;
+  bindEvents: () => void;
 };
 
 export const useEditorStore = create<State & Actions>((set, get) => ({
@@ -88,9 +92,13 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
     return Math.floor((len * 3) / 4) - padding;
   },
 
-  bindEvents: (pushWarn, pushError, pushSuccess, updateSecretMetadata, addToRecent) => {
+  bindEvents: () => {
     const st = get();
     if (st._eventsBound) return;
+
+    const { pushWarn, pushError, pushSuccess } = useLogsStore.getState();
+    const { updateSecretMetadata } = useSecretsListStore.getState();
+    const { addToRecent } = useBookmarksStore.getState();
 
     void listen<{ secret_id: string; content: SecretContent }>("secret_fetch_ok", async (ev) => {
       const { secret_id, content } = ev.payload;
@@ -179,7 +187,8 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
       }
 
       await new Promise(resolve => setTimeout(resolve, 0));
-      await updateSecretMetadata(secret_id, isBinary);
+      const profile = useProfileStore.getState().selectedProfile ?? useProfileStore.getState().defaultProfile;
+      await updateSecretMetadata(profile, secret_id, isBinary);
       await addToRecent(secret_id);
       pushSuccess("Fetched secret");
     });
@@ -193,12 +202,13 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
     set({ _eventsBound: true });
   },
 
-  fetchSecretById: async (name: string, profile: string | null, pushInfo, pushError, pushSuccess, updateSecretMetadata, addToRecent) => {
+  fetchSecretById: async (name: string, profile: string | null) => {
     const st = get();
+    const { pushInfo, pushError } = useLogsStore.getState();
 
     // Bind events nếu chưa bind
     if (!st._eventsBound) {
-      st.bindEvents(() => {}, pushError, pushSuccess, updateSecretMetadata, addToRecent);
+      st.bindEvents();
     }
 
     // Kiểm tra xem secret đã có trong tab chưa
@@ -226,18 +236,21 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
     }
   },
 
-  startEdit: (pushInfo) => {
+  startEdit: () => {
+    const { pushInfo } = useLogsStore.getState();
     set({ isEditing: true, isCreatingNew: false });
     pushInfo("Switched to edit mode");
   },
 
-  startCreateNew: (pushInfo) => {
+  startCreateNew: () => {
+    const { pushInfo } = useLogsStore.getState();
     set({ isCreatingNew: true, isEditing: true, editorContent: "", secretId: "", importedBinary: null, isBinary: false });
     pushInfo("Switched to create new secret mode");
   },
 
-  save: async (profile: string | null, pushInfo, pushSuccess) => {
+  save: async (profile: string | null) => {
     const st = get();
+    const { pushInfo, pushSuccess } = useLogsStore.getState();
     pushInfo((st.isCreatingNew ? "Creating" : "Updating") + ` secret: ${st.secretId}`);
     if (st.isCreatingNew) {
       const payload = st.isBinary ? (st.importedBinary?.base64 ?? st.editorContent) : st.editorContent;
@@ -260,8 +273,9 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
     set({ isEditing: false, isCreatingNew: false, importedBinary: null });
   },
 
-  cancelEdit: (pushInfo) => {
+  cancelEdit: () => {
     const st = get();
+    const { pushInfo } = useLogsStore.getState();
     if (st.activeTabId) {
       const tab = st.tabs.find(t => t.id === st.activeTabId);
       if (tab) {

@@ -4,7 +4,6 @@ import { TopBar } from "../shared/TopBar";
 import { EditorPanel } from "../shared/EditorPanel";
 import { LogsStatus } from "../shared/LogsStatus";
 import { RightPanel } from "../shared/RightPanel";
-import { useLogsStore } from "../store/useLogsStore";
 import { useProfileStore } from "../store/useProfileStore";
 import { useSecretsListStore } from "../store/useSecretsListStore";
 import { useBookmarksStore } from "../store/useBookmarksStore";
@@ -13,7 +12,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "../services/tauriApi";
 
 export function DashboardPage() {
-  const { pushError, pushSuccess } = useLogsStore();
   const profileStore = useProfileStore();
   const secretsListStore = useSecretsListStore();
   const bookmarksStore = useBookmarksStore();
@@ -23,7 +21,7 @@ export function DashboardPage() {
   const toggleRightPanel = useUiStore((state) => state.toggleRightPanel);
 
   const initLoad = useCallback(async () => {
-    await profileStore.initLoad(pushError, pushSuccess, async (prof) => {
+    await profileStore.initLoad(async (prof) => {
       const cached = await api.loadCachedSecretNames(prof);
       const cachedMetadata = await api.loadCachedSecretMetadata(prof);
 
@@ -41,7 +39,7 @@ export function DashboardPage() {
       }
     });
     await bookmarksStore.initLoad();
-  }, [profileStore, secretsListStore, bookmarksStore, pushError, pushSuccess]);
+  }, [profileStore, secretsListStore, bookmarksStore]);
 
   useEffect(() => {
     initLoad();

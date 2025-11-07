@@ -1,11 +1,9 @@
 import { Star } from "lucide-react";
 import { useState } from "react";
 import { useProfileStore } from "../../store/useProfileStore";
-import { useLogsStore } from "../../store/useLogsStore";
 
 export function ProfilesSection() {
   const [collapsed, setCollapsed] = useState(false);
-  const { pushSuccess } = useLogsStore();
   const {
     profiles,
     selectedProfile,
@@ -48,7 +46,7 @@ export function ProfilesSection() {
             </select>
             <button
               className="btn btn-primary btn-sm"
-              onClick={() => saveDefault(pushSuccess)}
+              onClick={() => saveDefault()}
             >
               <Star className="h-4 w-4 mr-1" /> Set default
             </button>

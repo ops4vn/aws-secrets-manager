@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { api } from "../services/tauriApi";
+import { useLogsStore } from "./useLogsStore";
 
 type State = {
   allNames: string[];
@@ -11,7 +12,7 @@ type State = {
 type Actions = {
   setShowSecretsTree: (v: boolean) => void;
   setSearchQuery: (q: string) => void;
-  listSecrets: (profile: string | null, pushInfo: (msg: string) => void, pushWarn: (msg: string) => void, pushSuccess: (msg: string) => void, force?: boolean) => Promise<void>;
+  listSecrets: (profile: string | null, force?: boolean) => Promise<void>;
   updateSecretMetadata: (profile: string | null, secretId: string, isBinary: boolean) => Promise<void>;
 };
 
@@ -24,7 +25,8 @@ export const useSecretsListStore = create<State & Actions>((set, get) => ({
   setShowSecretsTree: (v) => set({ showSecretsTree: v }),
   setSearchQuery: (q) => set({ searchQuery: q }),
 
-  listSecrets: async (profile, pushInfo, pushWarn, pushSuccess, force = false) => {
+  listSecrets: async (profile, force = false) => {
+    const { pushInfo, pushWarn, pushSuccess } = useLogsStore.getState();
     set({ showSecretsTree: true });
     if (!profile) {
       pushWarn("No profile selected");

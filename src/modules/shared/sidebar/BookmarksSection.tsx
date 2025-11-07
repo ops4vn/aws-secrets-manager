@@ -2,19 +2,14 @@ import { Bookmark, ChevronDown, ChevronUp, X } from "lucide-react";
 import { useState } from "react";
 import { useBookmarksStore } from "../../store/useBookmarksStore";
 import { useProfileStore } from "../../store/useProfileStore";
-import { useSecretsListStore } from "../../store/useSecretsListStore";
 import { useEditorStore } from "../../store/useEditorStore";
-import { useLogsStore } from "../../store/useLogsStore";
 import { getSecretDisplayName } from "../utils/secretDisplayUtils";
 
 export function BookmarksSection() {
   const [collapsed, setCollapsed] = useState(false);
-  const { pushInfo, pushError, pushSuccess } = useLogsStore();
   const { selectedProfile, defaultProfile } = useProfileStore();
-  const { updateSecretMetadata } = useSecretsListStore();
   const { bookmarks, removeBookmark } = useBookmarksStore();
   const { fetchSecretById } = useEditorStore();
-  const { addToRecent } = useBookmarksStore();
 
   return (
     <div className="bg-base-100 border border-base-300 rounded-md flex flex-col">
@@ -61,16 +56,7 @@ export function BookmarksSection() {
                     className="flex-1 text-left text-xs truncate hover:text-primary"
                     onClick={() => {
                       const profile = selectedProfile ?? defaultProfile;
-                      fetchSecretById(
-                        secretId,
-                        profile,
-                        pushInfo,
-                        pushError,
-                        pushSuccess,
-                        (sid, isBin) =>
-                          updateSecretMetadata(profile, sid, isBin),
-                        addToRecent
-                      );
+                      fetchSecretById(secretId, profile);
                     }}
                     title={secretId}
                   >

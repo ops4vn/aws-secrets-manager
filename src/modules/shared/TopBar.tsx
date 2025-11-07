@@ -1,17 +1,11 @@
 import { Edit3, LockOpen, Plus, Upload } from "lucide-react";
 import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
-import { useLogsStore } from "../store/useLogsStore";
 import { useProfileStore } from "../store/useProfileStore";
-import { useSecretsListStore } from "../store/useSecretsListStore";
-import { useBookmarksStore } from "../store/useBookmarksStore";
 import { useEditorStore } from "../store/useEditorStore";
 import { useRef } from "react";
 
 export function TopBar() {
-  const { pushInfo, pushError, pushSuccess } = useLogsStore();
   const { selectedProfile, defaultProfile } = useProfileStore();
-  const { updateSecretMetadata } = useSecretsListStore();
-  const { addToRecent } = useBookmarksStore();
   const {
     secretId,
     setSecretId,
@@ -82,7 +76,7 @@ export function TopBar() {
       }
 
       // Switch to create/edit mode first (before setting content)
-      startCreateNewEditor(pushInfo);
+      startCreateNewEditor();
 
       // Then set the content and secret IDs
       setSecretId(importSecretId);
@@ -154,15 +148,7 @@ export function TopBar() {
           title={isEditing ? "Cancel edit first to prevent data loss" : ""}
           onClick={() => {
             const profile = selectedProfile ?? defaultProfile;
-            fetchSecretById(
-              secretId,
-              profile,
-              pushInfo,
-              pushError,
-              pushSuccess,
-              (sid, isBin) => updateSecretMetadata(profile, sid, isBin),
-              addToRecent
-            );
+            fetchSecretById(secretId, profile);
           }}
         >
           <LockOpen className="h-4 w-4 mr-1" /> Get Secret
@@ -177,7 +163,7 @@ export function TopBar() {
               ? "Already in edit mode"
               : ""
           }
-          onClick={() => startEditEditor(pushInfo)}
+          onClick={() => startEditEditor()}
         >
           <Edit3 className="h-4 w-4 mr-1" /> Edit
         </button>
@@ -185,7 +171,7 @@ export function TopBar() {
           className="btn btn-sm"
           disabled={isEditing}
           title={isEditing ? "Finish current edit first" : ""}
-          onClick={() => startCreateNewEditor(pushInfo)}
+          onClick={() => startCreateNewEditor()}
         >
           <Plus className="h-4 w-4 mr-1" /> New Secret
         </button>

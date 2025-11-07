@@ -6,10 +6,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { useProfileStore } from "../../store/useProfileStore";
-import { useLogsStore } from "../../store/useLogsStore";
 
 export function SsoControl() {
-  const { pushInfo, pushError, pushSuccess, pushWarn } = useLogsStore();
   const {
     ssoValid,
     ssoChecking,
@@ -47,9 +45,9 @@ export function SsoControl() {
           <button
             className="btn btn-link btn-xs no-underline"
             onClick={async () => {
-              await triggerSsoLogin(pushWarn, pushInfo, pushError);
+              await triggerSsoLogin();
               setTimeout(() => {
-                void checkSsoFlow(pushWarn, pushInfo, pushSuccess, pushError);
+                void checkSsoFlow();
               }, 3000);
             }}
           >
@@ -58,9 +56,7 @@ export function SsoControl() {
         )}
         <button
           className="btn btn-sm bg-[#FF9900] hover:bg-[#e58a00] text-white border-none"
-          onClick={() =>
-            checkSsoFlow(pushWarn, pushInfo, pushSuccess, pushError)
-          }
+          onClick={() => checkSsoFlow()}
           disabled={!!ssoChecking}
           title={
             ssoChecking

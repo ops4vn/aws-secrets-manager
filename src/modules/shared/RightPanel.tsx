@@ -7,13 +7,11 @@ import {
   LockOpen,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLogsStore } from "../store/useLogsStore";
 import { useProfileStore } from "../store/useProfileStore";
 import { useSecretsListStore } from "../store/useSecretsListStore";
 import { useEditorStore } from "../store/useEditorStore";
 
 export function RightPanel() {
-  const { pushInfo, pushError, pushSuccess, pushWarn } = useLogsStore();
   const { selectedProfile, defaultProfile } = useProfileStore();
   const {
     searchQuery,
@@ -21,7 +19,6 @@ export function RightPanel() {
     allNames,
     secretMetadata,
     listSecrets,
-    updateSecretMetadata,
   } = useSecretsListStore();
   const { fetchSecretById, setSecretId } = useEditorStore();
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -61,25 +58,13 @@ export function RightPanel() {
     async (name: string) => {
       setSecretId(name);
       const profile = selectedProfile ?? defaultProfile;
-      await fetchSecretById(
-        name,
-        profile,
-        pushInfo,
-        pushError,
-        pushSuccess,
-        (sid, isBin) => updateSecretMetadata(profile, sid, isBin),
-        async () => {}
-      );
+      await fetchSecretById(name, profile);
     },
     [
       setSecretId,
       fetchSecretById,
       selectedProfile,
       defaultProfile,
-      pushInfo,
-      pushError,
-      pushSuccess,
-      updateSecretMetadata,
     ]
   );
 
@@ -118,7 +103,7 @@ export function RightPanel() {
               title="Force reload"
               onClick={() => {
                 const profile = selectedProfile ?? defaultProfile;
-                listSecrets(profile, pushInfo, pushWarn, pushSuccess, true);
+                listSecrets(profile, true);
               }}
             >
               <RefreshCcw className="h-4 w-4" />

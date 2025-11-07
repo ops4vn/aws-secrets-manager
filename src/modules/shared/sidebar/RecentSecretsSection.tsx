@@ -2,20 +2,17 @@ import { Bookmark, ChevronDown, ChevronUp, Clock, Star, Trash2 } from "lucide-re
 import { useState } from "react";
 import { useBookmarksStore } from "../../store/useBookmarksStore";
 import { useProfileStore } from "../../store/useProfileStore";
-import { useSecretsListStore } from "../../store/useSecretsListStore";
 import { useEditorStore } from "../../store/useEditorStore";
 import { useLogsStore } from "../../store/useLogsStore";
 import { getSecretDisplayName } from "../utils/secretDisplayUtils";
 
 export function RecentSecretsSection() {
   const [collapsed, setCollapsed] = useState(false);
-  const { pushInfo, pushError, pushSuccess } = useLogsStore();
+  const { pushSuccess } = useLogsStore();
   const { selectedProfile, defaultProfile } = useProfileStore();
-  const { updateSecretMetadata } = useSecretsListStore();
   const { bookmarks, recentSecrets, addBookmark, removeBookmark, clearRecentSecrets } =
     useBookmarksStore();
   const { fetchSecretById } = useEditorStore();
-  const { addToRecent } = useBookmarksStore();
 
   return (
     <div className="bg-base-100 border border-base-300 rounded-md flex-1 min-h-0 flex flex-col">
@@ -76,16 +73,7 @@ export function RecentSecretsSection() {
                       className="flex-1 text-left text-xs truncate hover:text-primary"
                       onClick={() => {
                         const profile = selectedProfile ?? defaultProfile;
-                        fetchSecretById(
-                          secretId,
-                          profile,
-                          pushInfo,
-                          pushError,
-                          pushSuccess,
-                          (sid, isBin) =>
-                            updateSecretMetadata(profile, sid, isBin),
-                          addToRecent
-                        );
+                        fetchSecretById(secretId, profile);
                       }}
                       title={secretId}
                     >
