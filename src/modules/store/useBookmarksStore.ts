@@ -14,6 +14,7 @@ type Actions = {
   removeBookmark: (secretId: string) => Promise<void>;
   addToRecent: (secretId: string) => Promise<void>;
   clearRecentSecrets: () => Promise<void>;
+  clearBookmarks: () => Promise<void>;
 };
 
 export const useBookmarksStore = create<State & Actions>((set, get) => ({
@@ -66,6 +67,13 @@ export const useBookmarksStore = create<State & Actions>((set, get) => ({
   clearRecentSecrets: async () => {
     set({ recentSecrets: [] });
     await api.saveRecentSecrets([]);
+  },
+
+  clearBookmarks: async () => {
+    const { selectedProfile, defaultProfile } = useProfileStore.getState();
+    const profile = selectedProfile ?? defaultProfile ?? "default";
+    set({ bookmarks: [] });
+    await api.saveBookmarks(profile, []);
   },
 }));
 

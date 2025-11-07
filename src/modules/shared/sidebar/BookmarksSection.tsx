@@ -1,15 +1,19 @@
-import { Bookmark, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Bookmark, ChevronDown, ChevronUp, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { useBookmarksStore } from "../../store/useBookmarksStore";
 import { useProfileStore } from "../../store/useProfileStore";
 import { useEditorStore } from "../../store/useEditorStore";
+import { useLogsStore } from "../../store/useLogsStore";
 import { getSecretDisplayName } from "../utils/secretDisplayUtils";
+import { Modal } from "../components/Modal";
 
 export function BookmarksSection() {
   const [collapsed, setCollapsed] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const { selectedProfile, defaultProfile } = useProfileStore();
-  const { bookmarks, removeBookmark } = useBookmarksStore();
+  const { bookmarks, removeBookmark, clearBookmarks } = useBookmarksStore();
   const { fetchSecretById } = useEditorStore();
+  const { pushSuccess } = useLogsStore();
 
   return (
     <div className="bg-base-100 border border-base-300 rounded-md flex flex-col">
@@ -36,6 +40,15 @@ export function BookmarksSection() {
             )}
           </h3>
         </div>
+        {bookmarks.length > 0 && (
+          <button
+            className="btn btn-ghost btn-xs btn-square text-error"
+            onClick={() => setShowConfirmModal(true)}
+            title="Clear all bookmarks"
+          >
+            <Trash2 className="h-3 w-3 text-error" />
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -75,6 +88,37 @@ export function BookmarksSection() {
           </div>
         </div>
       )}
+
+      {/* Confirm Modal */}
+      <Modal
+        open={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        title="Clear all bookmarks?"
+        actions={
+          <>
+            <button
+              className="btn btn-error"
+              onClick={async () => {
+                await clearBookmarks();
+                pushSuccess("All bookmarks cleared");
+                setShowConfirmModal(false);
+              }}
+            >
+              Clear
+            </button>
+            <button
+              className="btn"
+              onClick={() => setShowConfirmModal(false)}
+            >
+              Cancel
+            </button>
+          </>
+        }
+      >
+        <p>
+          Are you sure you want to clear all bookmarks? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

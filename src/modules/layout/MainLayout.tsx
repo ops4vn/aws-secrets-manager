@@ -35,7 +35,7 @@ export function MainLayout() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen bg-base-200 text-base-content">
+    <div className="flex flex-col min-h-screen min-w-screen bg-base-300 text-base-content overflow-hidden">
       <div className="navbar bg-base-100 border-b border-base-300 px-2 h-10 min-h-10">
         <div
           className={`flex-1 cursor-grab flex items-center gap-1 ${
