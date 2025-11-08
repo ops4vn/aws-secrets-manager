@@ -32,9 +32,9 @@ export function Modal({
 
   const modalContent = (
     <div className="modal modal-open">
-      <div className={`modal-box ${sizeClasses[size]}`}>
+      <div className={`modal-box px-4 py-3 rounded-xl ${sizeClasses[size]}`}>
         <h3 className="font-bold text-lg">{title}</h3>
-        <div className="py-4">{children}</div>
+        <div className="py-4 text-sm">{children}</div>
         {actions && <div className="modal-action">{actions}</div>}
       </div>
       {closeOnBackdrop && (

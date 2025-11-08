@@ -2,6 +2,7 @@ import { Copy } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLogsStore } from "../store/useLogsStore";
 import { Input } from "./components/Input";
+import { Select } from "./components/Select";
 
 export function LogsStatus() {
   const { logs, clearLogs, autoScrollLogs, setAutoScrollLogs, pushLog } =
@@ -88,19 +89,21 @@ export function LogsStatus() {
             onChange={(e) => setAutoScrollLogs(e.target.checked)}
           />
         </label>
-        <select
-          className="select select-bordered select-xs ml-2"
+        <Select
+          size="xs"
           value={levelFilter}
-          onChange={(e) => setLevelFilter(e.target.value as any)}
+          onChange={(value) => setLevelFilter(value as any)}
           title="Filter level"
-        >
-          <option value="all">All</option>
-          <option value="info">Info</option>
-          <option value="warn">Warn</option>
-          <option value="error">Error</option>
-          <option value="debug">Debug</option>
-          <option value="success">Success</option>
-        </select>
+          className="ml-2"
+          options={[
+            { value: "all", label: "All" },
+            { value: "info", label: "Info" },
+            { value: "warn", label: "Warn" },
+            { value: "error", label: "Error" },
+            { value: "debug", label: "Debug" },
+            { value: "success", label: "Success" },
+          ]}
+        />
         <Input
           size="xs"
           placeholder="Filter text..."
