@@ -72,10 +72,18 @@ export const Select = forwardRef<HTMLDivElement, SelectProps>(
           ref={buttonRef}
           type="button"
           className={cn(
-            "select focus:outline-none py-1 px-2 focus:border-primary w-full flex items-center",
-            "appearance-none [&::-webkit-appearance]:none [&::-moz-appearance]:none [&::after]:hidden",
-            `select-${size}`,
-            `select-${variant}`,
+            "select focus:outline-none px-2 focus:border-primary w-full flex items-center",
+            {
+              "select-xs": size === "xs",
+              "select-sm": size === "sm",
+              "select-md": size === "md",
+              "select-lg": size === "lg",
+            },
+            {
+              "select-bordered": variant === "bordered",
+              "select-ghost": variant === "ghost",
+              "select-primary": variant === "primary",
+            },
             disabled && "select-disabled"
           )}
           style={{ backgroundImage: "none" }}

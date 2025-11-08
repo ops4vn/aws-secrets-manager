@@ -14,7 +14,7 @@ export function BinaryImportPanel({
   size, 
   onSave, 
   onCancel,
-  createArgoCDSecret = false,
+  createArgoCDSecret = true,
   setCreateArgoCDSecret,
 }: Props) {
   return (
