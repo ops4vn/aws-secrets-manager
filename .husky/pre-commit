@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Đang kiểm tra TypeScript..."
+bunx tsc --noEmit || {
+  echo "❌ TypeScript check thất bại. Vui lòng sửa lỗi trước khi commit."
+  exit 1
+}
+
+echo "🔨 Đang build project..."
+bun run build || {
+  echo "❌ Build thất bại. Vui lòng sửa lỗi trước khi commit."
+  exit 1
+}
+
+echo "✅ Tất cả kiểm tra đã pass. Cho phép commit."
