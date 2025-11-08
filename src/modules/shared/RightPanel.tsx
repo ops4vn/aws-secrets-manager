@@ -15,6 +15,7 @@ import { useEditorStore } from "../store/useEditorStore";
 import { api } from "../services/tauriApi";
 import { useLogsStore } from "../store/useLogsStore";
 import { Input } from "./components/Input";
+import { Button } from "./components/Button";
 
 export function RightPanel() {
   const { selectedProfile, defaultProfile } = useProfileStore();
@@ -112,17 +113,20 @@ export function RightPanel() {
         <div className="flex items-center justify-between">
           <h2 className="text-primary text-md font-semibold">Secrets</h2>
           <div className="flex items-center gap-1">
-            <button
-              className={`btn btn-ghost btn-xs ${
-                showSearch ? "btn-active" : ""
-              }`}
+            <Button
+              size="xs"
+              variant="ghost"
+              square
+              active={showSearch}
               title="Search"
               onClick={() => handleSetSearchShow()}
             >
               <Search className="h-4 w-4" />
-            </button>
-            <button
-              className="btn btn-ghost btn-xs"
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              square
               title="Collapse all"
               onClick={() => {
                 const root = panelRef.current;
@@ -135,9 +139,12 @@ export function RightPanel() {
               }}
             >
               <Folder className="h-4 w-4" />
-            </button>
-            <button
-              className="btn btn-ghost btn-xs text-error"
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              square
+              className="text-error"
               title="Force reload"
               onClick={() => {
                 const profile = selectedProfile ?? defaultProfile;
@@ -148,9 +155,12 @@ export function RightPanel() {
               }}
             >
               <RefreshCcw className="h-4 w-4" />
-            </button>
-            <button
-              className={`btn btn-ghost btn-xs ${showDeleted ? "btn-active" : ""}`}
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              square
+              active={showDeleted}
               title="Show deleted secrets"
               onClick={() => {
                 setShowDeleted(!showDeleted);
@@ -160,7 +170,7 @@ export function RightPanel() {
               }}
             >
               <Trash2 className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -178,13 +188,16 @@ export function RightPanel() {
                 className="w-full"
               />
               {trimmed && (
-                <button
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  square
+                  className="join-item"
                   aria-label="Clear search"
-                  className="join-item btn btn-sm btn-ghost"
                   onClick={() => setLocalQuery("")}
                 >
                   <XCircle className="h-4 w-4" />
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -217,12 +230,13 @@ export function RightPanel() {
                 {secretMetadata[name] === false && (
                   <span className="badge badge-xs badge-info">JSON</span>
                 )}
-                <button
-                  className="btn btn-ghost btn-xs"
+                <Button
+                  size="xs"
+                  variant="ghost"
                   onClick={() => handleSelect(name)}
                 >
                   <LockOpen className="h-3.5 w-3.5 mr-1" /> Get
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -261,13 +275,16 @@ export function RightPanel() {
                         <span className="text-base-content/50 text-sm flex-1 truncate">
                           {name}
                         </span>
-                        <button
-                          className="btn btn-ghost btn-xs text-success"
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          square
+                          className="text-success"
                           onClick={() => handleRestore(name)}
                           title="Restore secret"
                         >
                           <RotateCcw className="h-3.5 w-3.5" />
-                        </button>
+                        </Button>
                       </div>
                     </li>
                   ))}

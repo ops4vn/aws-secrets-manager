@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLogsStore } from "../store/useLogsStore";
 import { Input } from "./components/Input";
 import { Select } from "./components/Select";
+import { Button } from "./components/Button";
 
 export function LogsStatus() {
   const { logs, clearLogs, autoScrollLogs, setAutoScrollLogs, pushLog } =
@@ -111,16 +112,23 @@ export function LogsStatus() {
           onChange={(e) => setTextFilter(e.target.value)}
           className="ml-2 w-48"
         />
-        <button
-          className="btn btn-ghost btn-xs"
+        <Button
+          size="xs"
+          variant="ghost"
+          square
           onClick={copyFiltered}
           title="Copy filtered logs"
         >
           <Copy className="h-3.5 w-3.5" />
-        </button>
-        <button className="btn btn-ghost btn-xs ml-2" onClick={clearLogs}>
+        </Button>
+        <Button
+          size="xs"
+          variant="ghost"
+          className="ml-2"
+          onClick={clearLogs}
+        >
           Clear
-        </button>
+        </Button>
       </div>
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 min-h-0">
         {filteredLogs.map((line, idx) => (

@@ -6,6 +6,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useProfileStore } from "../../store/useProfileStore";
+import { Button } from "../components/Button";
 
 export function SsoControl() {
   const {
@@ -53,8 +54,10 @@ export function SsoControl() {
         ) : (
           <>
             {ssoValid === false && !ssoChecking && (
-              <button
-                className="btn btn-link btn-xs no-underline"
+              <Button
+                size="xs"
+                variant="link"
+                className="no-underline"
                 onClick={async () => {
                   await triggerSsoLogin();
                   setTimeout(() => {
@@ -63,12 +66,14 @@ export function SsoControl() {
                 }}
               >
                 Login
-              </button>
+              </Button>
             )}
-            <button
-              className="btn btn-sm bg-[#FF9900] hover:bg-[#e58a00] text-white border-none"
+            <Button
+              size="sm"
+              className="bg-[#FF9900] hover:bg-[#e58a00] text-white border-none"
               onClick={() => checkSsoFlow()}
               disabled={!!ssoChecking || !hasProfile}
+              loading={ssoChecking}
               title={
                 !hasProfile
                   ? "Please select a profile first"
@@ -85,7 +90,7 @@ export function SsoControl() {
                 : ssoValid == null
                 ? "Check"
                 : "Re-check"}
-            </button>
+            </Button>
           </>
         )}
       </div>

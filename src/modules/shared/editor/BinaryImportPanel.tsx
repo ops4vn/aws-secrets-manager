@@ -1,3 +1,5 @@
+import { Button } from "../components/Button";
+
 type Props = {
   name: string;
   size: number;
@@ -17,12 +19,12 @@ export function BinaryImportPanel({ name, size, onSave, onCancel }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn btn-success btn-sm" onClick={onSave}>
+          <Button size="sm" variant="success" onClick={onSave}>
             Push secret
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={onCancel}>
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onCancel}>
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
       <div className="mt-3 text-xs opacity-70">

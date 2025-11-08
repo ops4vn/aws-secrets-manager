@@ -1,6 +1,7 @@
 import { List, RefreshCcw } from "lucide-react";
 import { useProfileStore } from "../../store/useProfileStore";
 import { useSecretsListStore } from "../../store/useSecretsListStore";
+import { Button } from "../components/Button";
 
 export function SecretsActions() {
   const { profiles, selectedProfile, defaultProfile } = useProfileStore();
@@ -10,9 +11,10 @@ export function SecretsActions() {
   const profile = selectedProfile ?? defaultProfile;
 
   return (
-    <div className="flex items-center gap-2">
-      <button
-        className="btn btn-primary btn-sm flex-1"
+    <div className="flex justify-around items-center gap-2">
+      <Button
+        size="sm"
+        variant="primary"
         onClick={() => {
           if (profile) {
             listSecrets(profile, false);
@@ -28,9 +30,10 @@ export function SecretsActions() {
         }
       >
         <List className="h-4 w-4 mr-1" /> List Secrets
-      </button>
-      <button
-        className="btn btn-primary btn-sm flex-1"
+      </Button>
+      <Button
+        size="sm"
+        variant="primary"
         onClick={() => {
           if (profile) {
             listSecrets(profile, true);
@@ -46,7 +49,7 @@ export function SecretsActions() {
         }
       >
         <RefreshCcw className="h-4 w-4 mr-1" /> Force Reload
-      </button>
+      </Button>
     </div>
   );
 }

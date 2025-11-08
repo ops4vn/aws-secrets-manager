@@ -1,6 +1,7 @@
 import { Star } from "lucide-react";
 import { useProfileStore } from "../../store/useProfileStore";
 import { Select } from "../components/Select";
+import { Button } from "../components/Button";
 
 export function ProfilesSection() {
   const {
@@ -43,13 +44,14 @@ export function ProfilesSection() {
               className="flex-1"
               options={profiles.map((p) => ({ value: p, label: p }))}
             />
-            <button
-              className="btn btn-primary btn-sm"
+            <Button
+              size="sm"
+              variant="primary"
               onClick={() => saveDefault()}
               disabled={!selectedProfile && !defaultProfile}
             >
               <Star className="h-4 w-4 mr-1" /> Set default
-            </button>
+            </Button>
           </div>
         </div>
       )}

@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "./components/Button";
 
 type UpdateModalProps = {
   open: boolean;
@@ -67,15 +68,15 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             <div className="modal-action">
               {!isDownloading && !isDownloaded && (
                 <>
-                  <button className="btn btn-primary" onClick={onYes}>Yes</button>
-                  <button className="btn" onClick={onLater}>Later</button>
+                  <Button variant="primary" onClick={onYes}>Yes</Button>
+                  <Button onClick={onLater}>Later</Button>
                 </>
               )}
               {isDownloading && !isDownloaded && (
-                <button className="btn" onClick={onClose}>Hide</button>
+                <Button onClick={onClose}>Hide</Button>
               )}
               {isDownloaded && (
-                <button className="btn btn-primary" onClick={onRestart}>Restart</button>
+                <Button variant="primary" onClick={onRestart}>Restart</Button>
               )}
             </div>
           </div>

@@ -10,6 +10,7 @@ import {
   Download,
   AlertCircle,
 } from "lucide-react";
+import { Button } from "../components/Button";
 
 type Props = {
   label?: string;
@@ -90,8 +91,9 @@ export function EditorToolbar({
 
       {hasContent && (
         <>
-          <button
-            className={`btn btn-xs ${copyCopied ? "btn-success" : ""}`}
+          <Button
+            size="xs"
+            variant={copyCopied ? "success" : "primary"}
             onClick={async () => {
               if (content) {
                 await navigator.clipboard.writeText(content);
@@ -106,23 +108,24 @@ export function EditorToolbar({
               <ClipboardCopy className="h-3.5 w-3.5 mr-1" />
             )}
             {copyCopied ? "Copied" : "Copy"}
-          </button>
+          </Button>
 
           {canExport && (
-            <button
-              className="btn btn-xs"
+            <Button
+              size="xs"
               onClick={onExport}
               title="Export secret to JSON file"
             >
               <Download className="h-3.5 w-3.5 mr-1" /> Export
-            </button>
+            </Button>
           )}
         </>
       )}
 
       {hasContent && isBinary && isValidBase64(content) && (
-        <button
-          className={`btn btn-xs ${isDecoded ? "btn-info" : ""}`}
+        <Button
+          size="xs"
+          variant={isDecoded ? "info" : "primary"}
           onClick={() => setIsDecoded(!isDecoded)}
           title={isDecoded ? "Show encoded (base64)" : "Show decoded (text)"}
         >
@@ -132,13 +135,14 @@ export function EditorToolbar({
             <Eye className="h-3.5 w-3.5 mr-1" />
           )}
           {isDecoded ? "Encoded" : "Decoded"}
-        </button>
+        </Button>
       )}
 
       {!isEditing && !isBinary && hasContent && (
-        <button
+        <Button
           ref={keyPickerButtonRef}
-          className={`btn btn-xs ${copyByKeyCopied ? "btn-success" : ""}`}
+          size="xs"
+          variant={copyByKeyCopied ? "success" : "primary"}
           onClick={() => {
             setShowKeyPicker((s) => !s);
             if (copyByKeyCopied) setCopyByKeyCopied(false);
@@ -151,17 +155,18 @@ export function EditorToolbar({
             <ClipboardCopy className="h-3.5 w-3.5 mr-1" />
           )}
           {copyByKeyCopied ? "Copied" : "Copy by key"}
-        </button>
+        </Button>
       )}
 
       {!isEditing && hasContent && (
-        <button
-          className={`btn btn-xs ${wrap ? "btn-success" : ""}`}
+        <Button
+          size="xs"
+          variant={wrap ? "success" : "primary"}
           onClick={() => setWrap(!wrap)}
           title="Toggle wrap lines"
         >
           <WrapText className="h-3.5 w-3.5 mr-1" /> Wrap lines
-        </button>
+        </Button>
       )}
 
       {!isEditing && !isBinary && hasContent && showKeyPicker && (
@@ -208,12 +213,12 @@ export function EditorToolbar({
 
       {showSaveCancel && (
         <div className="ml-auto flex items-center gap-2">
-          <button className="btn btn-success btn-sm" onClick={onSave}>
+          <Button size="sm" variant="success" onClick={onSave}>
             <Save className="h-4 w-4 mr-1" /> Save
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={onCancel}>
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onCancel}>
             <X className="h-4 w-4 mr-1" /> Cancel
-          </button>
+          </Button>
         </div>
       )}
     </div>

@@ -8,6 +8,7 @@ import { useLogsStore } from "../store/useLogsStore";
 import { useSecretsListStore } from "../store/useSecretsListStore";
 import { Modal } from "./components/Modal";
 import { Input } from "./components/Input";
+import { Button } from "./components/Button";
 
 export function TopBar() {
   const { selectedProfile, defaultProfile } = useProfileStore();
@@ -186,8 +187,8 @@ export function TopBar() {
       </div>
 
       <div className="flex items-center gap-2">
-        <button
-          className="btn btn-sm"
+        <Button
+          size="sm"
           disabled={isEditing}
           title={isEditing ? "Cancel edit first to prevent data loss" : ""}
           onClick={() => {
@@ -196,9 +197,9 @@ export function TopBar() {
           }}
         >
           <LockOpen className="h-4 w-4 mr-1" /> Get Secret
-        </button>
-        <button
-          className="btn btn-sm"
+        </Button>
+        <Button
+          size="sm"
           disabled={isEditing || !secretId}
           title={
             !secretId
@@ -210,9 +211,10 @@ export function TopBar() {
           onClick={() => startEditEditor()}
         >
           <Edit3 className="h-4 w-4 mr-1" /> Edit
-        </button>
-        <button
-          className="btn btn-sm btn-error text-white"
+        </Button>
+        <Button
+          size="sm"
+          variant="error"
           disabled={isEditing || !activeTabId}
           title={
             !activeTabId
@@ -224,23 +226,23 @@ export function TopBar() {
           onClick={handleDeleteClick}
         >
           <Trash2 className="h-4 w-4 mr-1" /> Delete
-        </button>
-        <button
-          className="btn btn-sm"
+        </Button>
+        <Button
+          size="sm"
           disabled={isEditing}
           title={isEditing ? "Finish current edit first" : ""}
           onClick={() => startCreateNewEditor()}
         >
           <Plus className="h-4 w-4 mr-1" /> New Secret
-        </button>
-        <button
-          className="btn btn-sm"
+        </Button>
+        <Button
+          size="sm"
           disabled={isEditing}
           title={isEditing ? "Finish current edit first" : "Import JSON file"}
           onClick={() => fileInputRef.current?.click()}
         >
           <Upload className="h-4 w-4 mr-1" /> Import
-        </button>
+        </Button>
         {/* <KeyboardShortcutsHelp /> */}
       </div>
       <input
@@ -258,18 +260,12 @@ export function TopBar() {
         title="Delete secret?"
         actions={
           <>
-            <button
-              className="btn btn-error"
-              onClick={confirmDelete}
-            >
+            <Button variant="error" onClick={confirmDelete}>
               Delete
-            </button>
-            <button
-              className="btn"
-              onClick={() => setShowDeleteModal(false)}
-            >
+            </Button>
+            <Button onClick={() => setShowDeleteModal(false)}>
               Cancel
-            </button>
+            </Button>
           </>
         }
       >

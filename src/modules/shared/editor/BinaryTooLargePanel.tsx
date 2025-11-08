@@ -4,6 +4,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { api } from "../../services/tauriApi";
 import { useLogsStore } from "../../store/useLogsStore";
+import { Button } from "../components/Button";
 
 type Props = {
   name: string;
@@ -71,15 +72,17 @@ export function BinaryTooLargePanel({ name, size, secretId, profile }: Props) {
             <span>Size: {(size / 1024).toFixed(2)} KB</span>
           </div>
         </div>
-        <button
-          className="btn btn-primary btn-sm"
+        <Button
+          size="sm"
+          variant="primary"
           onClick={handleExport}
           disabled={isExporting}
+          loading={isExporting}
           title="Export binary to file"
         >
           <Download className="h-4 w-4 mr-1" />
           {isExporting ? "Exporting..." : "Export"}
-        </button>
+        </Button>
       </div>
       <div className="mt-3 text-xs opacity-70">
         This binary is larger than 50KB, so content is not displayed. You can export it to a file.

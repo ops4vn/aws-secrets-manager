@@ -66,7 +66,7 @@ export const Select = forwardRef<HTMLDivElement, SelectProps>(
     return (
       <div
         ref={ref || containerRef}
-        className={cn("dropdown dropdown-end w-full", isOpen && "dropdown-open", className)}
+        className={cn("dropdown dropdown-end", isOpen && "dropdown-open", className)}
       >
         <button
           ref={buttonRef}
