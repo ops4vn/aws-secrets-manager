@@ -74,8 +74,9 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
   setEditorContent: (v) => {
     const st = get();
     set({ editorContent: v });
-    // Sync với tab active
-    if (st.activeTabId) {
+    // Sync với tab active, nhưng không sync khi đang tạo secret mới (import file)
+    // vì khi import file, content của file không nên ghi đè content của tab hiện tại
+    if (st.activeTabId && !st.isCreatingNew) {
       const updatedTabs = st.tabs.map(t =>
         t.id === st.activeTabId ? { ...t, content: v } : t
       );
@@ -244,8 +245,20 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
   },
 
   startCreateNew: () => {
+    const st = get();
     const { pushInfo } = useLogsStore.getState();
-    set({ isCreatingNew: true, isEditing: true, editorContent: "", secretId: "", importedBinary: null, isBinary: false });
+    
+    // Lưu content hiện tại vào tab active trước khi clear (nếu có tab active)
+    if (st.activeTabId) {
+      const updatedTabs = st.tabs.map(t =>
+        t.id === st.activeTabId ? { ...t, content: st.editorContent } : t
+      );
+      set({ tabs: updatedTabs });
+    }
+    
+    // Set content mặc định là JSON với cursor ở giữa dấu ngoặc kép
+    const defaultContent = '{\n  ""\n}';
+    set({ isCreatingNew: true, isEditing: true, editorContent: defaultContent, secretId: "", importedBinary: null, isBinary: false });
     pushInfo("Switched to create new secret mode");
   },
 
@@ -291,14 +304,30 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
     if (st.activeTabId) {
       const tab = st.tabs.find(t => t.id === st.activeTabId);
       if (tab) {
+        // Restore tất cả state từ tab
+        let tooLarge: { name: string; size: number } | null = null;
+        if (tab.isBinary) {
+          if (tab.isTooLarge && tab.binarySize) {
+            tooLarge = { name: tab.secretId, size: tab.binarySize };
+          } else if (tab.content) {
+            const sizeBytes = st._computeBase64Size(tab.content);
+            if (sizeBytes > 50 * 1024) {
+              tooLarge = { name: tab.secretId, size: tab.binarySize ?? 0 };
+            }
+          }
+        }
         set({
           editorContent: tab.content,
+          secretId: tab.secretId,
+          isBinary: tab.isBinary,
           isEditing: false,
-          isCreatingNew: false
+          isCreatingNew: false,
+          importedBinary: null,
+          fetchedBinaryTooLarge: tooLarge,
         });
       }
     } else {
-      set({ isEditing: false, isCreatingNew: false });
+      set({ isEditing: false, isCreatingNew: false, importedBinary: null });
     }
     pushInfo("Edit mode cancelled");
   },

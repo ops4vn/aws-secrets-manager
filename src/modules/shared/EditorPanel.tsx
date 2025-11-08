@@ -65,6 +65,7 @@ export function EditorPanel() {
   const [isDecoded, setIsDecoded] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const isProcessingFileRef = useRef<boolean>(false);
+  const editorViewRef = useRef<EditorView | null>(null);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -81,6 +82,24 @@ export function EditorPanel() {
   useEffect(() => {
     bindEvents();
   }, [bindEvents]);
+
+  // Focus editor and set cursor position when creating new secret
+  useEffect(() => {
+    if (isCreatingNew && content === '{\n  ""\n}') {
+      const cursorPos = 5;
+      const timeoutId = setTimeout(() => {
+        if (editorViewRef.current) {
+          editorViewRef.current.focus();
+          const { state } = editorViewRef.current;
+          const transaction = state.update({
+            selection: { anchor: cursorPos, head: cursorPos }
+          });
+          editorViewRef.current.dispatch(transaction);
+        }
+      }, 150);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isCreatingNew, content]);
 
   const viewText = useMemo(() => {
     if (isEditing) return null as string | null;
@@ -425,6 +444,9 @@ export function EditorPanel() {
                   foldGutter: true,
                 }}
                 onChange={(val) => onChange(val)}
+                onCreateEditor={(view) => {
+                  editorViewRef.current = view;
+                }}
               />
             </div>
           ) : (

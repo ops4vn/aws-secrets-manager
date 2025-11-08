@@ -157,7 +157,7 @@ export function TopBar() {
   return (
     <div className="navbar bg-base-100 border-b border-base-300 px-4 gap-4">
       <div className="flex flex-1 items-center gap-3">
-        <span className="whitespace-nowrap">Secret ID:</span>
+        <span className="whitespace-nowrap">ARN:</span>
         <Input
           size="sm"
           value={secretId}
@@ -233,7 +233,7 @@ export function TopBar() {
           title={isEditing ? "Finish current edit first" : ""}
           onClick={() => startCreateNewEditor()}
         >
-          <Plus className="h-4 w-4 mr-1" /> New Secret
+          <Plus className="h-4 w-4 mr-1" /> New JSON Secret
         </Button>
         <Button
           size="sm"
@@ -241,7 +241,7 @@ export function TopBar() {
           title={isEditing ? "Finish current edit first" : "Import JSON file"}
           onClick={() => fileInputRef.current?.click()}
         >
-          <Upload className="h-4 w-4 mr-1" /> Import
+          <Upload className="h-4 w-4 mr-1" /> Import Binary Secret
         </Button>
         {/* <KeyboardShortcutsHelp /> */}
       </div>
