@@ -25,10 +25,16 @@ export function TopBar() {
     setEditorContent,
     setIsBinary,
     setImportedBinary,
+    fetchedBinaryTooLarge,
+    tabs,
   } = useEditorStore();
   const { pushInfo, pushError, pushSuccess } = useLogsStore();
   const { listSecrets, listDeletedSecrets } = useSecretsListStore();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // Kiểm tra xem binary secret có quá lớn không
+  const activeTab = tabs.find((t) => t.id === activeTabId);
+  const isBinaryTooLarge = !!fetchedBinaryTooLarge || (activeTab?.isBinary && activeTab?.isTooLarge);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -200,12 +206,14 @@ export function TopBar() {
         </Button>
         <Button
           size="sm"
-          disabled={isEditing || !secretId}
+          disabled={isEditing || !secretId || isBinaryTooLarge}
           title={
             !secretId
               ? "Get a secret first to edit"
               : isEditing
               ? "Already in edit mode"
+              : isBinaryTooLarge
+              ? "Cannot edit binary secret larger than 50KB"
               : ""
           }
           onClick={() => startEditEditor()}

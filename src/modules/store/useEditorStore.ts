@@ -283,11 +283,63 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
       }
 
       // Cập nhật content trong tab sau khi save
-      if (st.activeTabId) {
-        const updatedTabs = st.tabs.map(t =>
-          t.id === st.activeTabId ? { ...t, content: st.editorContent, isBinary: st.isBinary } : t
+      // Với binary secret, kiểm tra dung lượng và xử lý tương tự như khi fetch
+      let tabContent = st.editorContent;
+      let tooLarge: { name: string; size: number } | null = null;
+      
+      if (st.isBinary && st.importedBinary) {
+        const binarySize = st._computeBase64Size(st.importedBinary.base64);
+        if (binarySize > 50 * 1024) {
+          // Binary quá lớn, không hiển thị content
+          tabContent = "";
+          tooLarge = { name: st.secretId, size: binarySize };
+        } else {
+          // Binary nhỏ, hiển thị content
+          tabContent = st.importedBinary.base64;
+          tooLarge = null;
+        }
+      } else if (st.isBinary && st.editorContent) {
+        // Kiểm tra nếu editorContent là base64 của binary
+        const binarySize = st._computeBase64Size(st.editorContent);
+        if (binarySize > 50 * 1024) {
+          tabContent = "";
+          tooLarge = { name: st.secretId, size: binarySize };
+        } else {
+          tooLarge = null;
+        }
+      }
+      
+      if (st.isCreatingNew) {
+        // Khi tạo secret mới, tạo tab mới thay vì cập nhật tab hiện tại
+        const tabId = st.openTab(
+          st.secretId, 
+          tabContent, 
+          st.isBinary,
+          tooLarge ? { isTooLarge: true, binarySize: tooLarge.size } : { isTooLarge: false }
         );
-        set({ tabs: updatedTabs });
+        set({ 
+          activeTabId: tabId,
+          editorContent: tabContent,
+          fetchedBinaryTooLarge: tooLarge,
+        });
+      } else if (st.activeTabId) {
+        // Khi update secret, cập nhật tab hiện tại
+        const updatedTabs = st.tabs.map(t =>
+          t.id === st.activeTabId 
+            ? { 
+                ...t, 
+                content: tabContent, 
+                isBinary: st.isBinary,
+                isTooLarge: tooLarge ? true : false,
+                binarySize: tooLarge ? tooLarge.size : undefined,
+              } 
+            : t
+        );
+        set({ 
+          tabs: updatedTabs,
+          editorContent: tabContent,
+          fetchedBinaryTooLarge: tooLarge,
+        });
       }
 
       set({ isEditing: false, isCreatingNew: false, importedBinary: null });
