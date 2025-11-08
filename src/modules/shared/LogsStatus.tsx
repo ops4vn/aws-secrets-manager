@@ -1,6 +1,7 @@
 import { Copy } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLogsStore } from "../store/useLogsStore";
+import { Input } from "./components/Input";
 
 export function LogsStatus() {
   const { logs, clearLogs, autoScrollLogs, setAutoScrollLogs, pushLog } =
@@ -100,11 +101,12 @@ export function LogsStatus() {
           <option value="debug">Debug</option>
           <option value="success">Success</option>
         </select>
-        <input
-          className="input input-bordered input-xs ml-2 w-48"
+        <Input
+          size="xs"
           placeholder="Filter text..."
           value={textFilter}
           onChange={(e) => setTextFilter(e.target.value)}
+          className="ml-2 w-48"
         />
         <button
           className="btn btn-ghost btn-xs"

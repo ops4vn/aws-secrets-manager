@@ -14,6 +14,7 @@ import { useSecretsListStore } from "../store/useSecretsListStore";
 import { useEditorStore } from "../store/useEditorStore";
 import { api } from "../services/tauriApi";
 import { useLogsStore } from "../store/useLogsStore";
+import { Input } from "./components/Input";
 
 export function RightPanel() {
   const { selectedProfile, defaultProfile } = useProfileStore();
@@ -166,13 +167,15 @@ export function RightPanel() {
         {showSearch && (
           <div className="flex items-center gap-2 mt-2">
             <div className="join w-full">
-              <input
-                className="input focus:outline-none focus:border-primary join-item input-sm w-full"
+              <Input
+                size="sm"
+                isJoinItem
                 placeholder="Search..."
                 value={localQuery}
                 onChange={(e) => setLocalQuery(e.target.value)}
                 ref={searchInputRef}
                 autoComplete="false"
+                className="w-full"
               />
               {trimmed && (
                 <button

@@ -7,6 +7,7 @@ import { api } from "../services/tauriApi";
 import { useLogsStore } from "../store/useLogsStore";
 import { useSecretsListStore } from "../store/useSecretsListStore";
 import { Modal } from "./components/Modal";
+import { Input } from "./components/Input";
 
 export function TopBar() {
   const { selectedProfile, defaultProfile } = useProfileStore();
@@ -156,11 +157,12 @@ export function TopBar() {
     <div className="navbar bg-base-100 border-b border-base-300 px-4 gap-4">
       <div className="flex flex-1 items-center gap-3">
         <span className="whitespace-nowrap">Secret ID:</span>
-        <input
-          className="input focus:outline-none focus:border-primary input-sm w-full max-w-xl"
+        <Input
+          size="sm"
           value={secretId}
           onChange={(e) => setSecretId(e.target.value)}
           placeholder="my/app/secret"
+          className="w-full max-w-xl"
         />
 
         {isCreatingNew && (
