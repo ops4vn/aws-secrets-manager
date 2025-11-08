@@ -1,10 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { EditorView } from "@codemirror/view";
 
 export function useEditorFocus(
   isCreatingNew: boolean,
   content: string,
-  editorViewRef: React.MutableRefObject<EditorView | null>
+  editorViewRef: React.RefObject<EditorView | null>
 ) {
   useEffect(() => {
     if (isCreatingNew && content === '{\n  ""\n}') {

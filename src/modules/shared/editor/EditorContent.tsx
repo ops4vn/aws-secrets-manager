@@ -12,7 +12,7 @@ type Props = {
   wrap: boolean;
   isDecoded: boolean;
   onChange: (value: string) => void;
-  editorViewRef: React.MutableRefObject<EditorView | null>;
+  editorViewRef: React.RefObject<EditorView | null>;
 };
 
 export function EditorContent({
