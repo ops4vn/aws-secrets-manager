@@ -29,6 +29,9 @@ type Props = {
   onCancel: () => void;
   showSaveCancel: boolean;
   isValidBase64: (s: string) => boolean;
+  createArgoCDSecret?: boolean;
+  setCreateArgoCDSecret?: (v: boolean) => void;
+  isCreatingNew?: boolean;
 };
 
 export function EditorToolbar({
@@ -48,6 +51,9 @@ export function EditorToolbar({
   onCancel,
   showSaveCancel,
   isValidBase64,
+  createArgoCDSecret = false,
+  setCreateArgoCDSecret,
+  isCreatingNew = false,
 }: Props) {
   const [copyCopied, setCopyCopied] = useState(false);
   const [copyByKeyCopied, setCopyByKeyCopied] = useState(false);
@@ -118,6 +124,18 @@ export function EditorToolbar({
             >
               <Download className="h-3.5 w-3.5 mr-1" /> Export
             </Button>
+          )}
+
+          {isCreatingNew && !isBinary && setCreateArgoCDSecret && (
+            <label className="label cursor-pointer gap-2">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-xs"
+                checked={createArgoCDSecret}
+                onChange={(e) => setCreateArgoCDSecret(e.target.checked)}
+              />
+              <span className="label-text text-xs">Create ArgoCD External Secret</span>
+            </label>
           )}
         </>
       )}

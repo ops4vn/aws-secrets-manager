@@ -3,10 +3,11 @@ import CodeMirror from "@uiw/react-codemirror";
 import { json as jsonLang } from "@codemirror/lang-json";
 import { EditorView } from "@codemirror/view";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { Upload } from "lucide-react";
+import { Upload, ClipboardCopy, Download } from "lucide-react";
 import { isValidBase64 } from "./utils/base64Utils";
 import { useProfileStore } from "../store/useProfileStore";
 import { useEditorStore } from "../store/useEditorStore";
+import { useLogsStore } from "../store/useLogsStore";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeTextFile, readTextFile, readFile } from "@tauri-apps/plugin-fs";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -15,10 +16,14 @@ import { EditorToolbar } from "./editor/EditorToolbar";
 import { BinaryImportPanel } from "./editor/BinaryImportPanel";
 import { BinaryTooLargePanel } from "./editor/BinaryTooLargePanel";
 import { HighlightedContent } from "./editor/HighlightedContent";
+import { Modal } from "./components/Modal";
+import { Button } from "./components/Button";
+import { generateArgoCDExternalSecretTemplate } from "./utils/argocdTemplateUtils";
 import type { EditorTab } from "./types";
 
 export function EditorPanel() {
   const { selectedProfile, defaultProfile } = useProfileStore();
+  const { pushSuccess, pushError } = useLogsStore();
   const {
     tabs,
     activeTabId,
@@ -64,6 +69,9 @@ export function EditorPanel() {
   const [wrap, setWrap] = useState<boolean>(false);
   const [isDecoded, setIsDecoded] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [createArgoCDSecret, setCreateArgoCDSecret] = useState<boolean>(true);
+  const [showArgoCDTemplateModal, setShowArgoCDTemplateModal] = useState<boolean>(false);
+  const [argocdTemplate, setArgoCDTemplate] = useState<string>("");
   const isProcessingFileRef = useRef<boolean>(false);
   const editorViewRef = useRef<EditorView | null>(null);
 
@@ -167,15 +175,83 @@ export function EditorPanel() {
 
   const handleSave = async () => {
     const profile = selectedProfile ?? defaultProfile;
-    await saveEditor(profile);
+    const currentSecretId = useEditorStore.getState().secretId;
+    const currentIsBinary = useEditorStore.getState().isBinary;
+    const currentImportedBinary = useEditorStore.getState().importedBinary;
+    const shouldShowTemplate = createArgoCDSecret && currentSecretId;
+    
+    try {
+      await saveEditor(profile);
+      
+      // Nếu checkbox được chọn và save thành công, hiển thị template
+      if (shouldShowTemplate) {
+        const template = generateArgoCDExternalSecretTemplate(
+          currentSecretId,
+          currentIsBinary,
+          currentImportedBinary?.name
+        );
+        setArgoCDTemplate(template);
+        setShowArgoCDTemplateModal(true);
+      }
+      
+      // Reset checkbox sau khi save
+      setCreateArgoCDSecret(false);
+    } catch (error) {
+      // Error đã được xử lý trong store
+      console.error("Save failed:", error);
+    }
   };
 
   const handleCancel = () => {
+    setCreateArgoCDSecret(false);
     cancelEditEditor();
   };
 
   const handleStartCreateNew = () => {
+    setCreateArgoCDSecret(false);
     startCreateNewEditor();
+  };
+
+  const handleExportArgoCDTemplate = async () => {
+    if (!argocdTemplate) return;
+    
+    try {
+      const secretId = useEditorStore.getState().secretId;
+      const baseFileName = secretId ? `${secretId.replace(/\//g, "_")}-external-secret` : "external-secret";
+      const fileName = `${baseFileName}.yaml`;
+      
+      const filePath = await save({
+        defaultPath: fileName,
+        filters: [
+          { name: "YAML Files", extensions: ["yaml"] },
+          { name: "All Files", extensions: ["*"] },
+        ],
+      });
+
+      if (filePath) {
+        // Đảm bảo file path có đuôi .yaml
+        const finalPath = filePath.endsWith(".yaml") ? filePath : `${filePath}.yaml`;
+        await writeTextFile(finalPath, argocdTemplate);
+        pushSuccess(`Exported ArgoCD template to ${finalPath}`);
+      }
+    } catch (error) {
+      const errorMsg = typeof error === 'string' ? error : (error as any)?.message ?? String(error);
+      pushError(`Failed to export ArgoCD template: ${errorMsg}`);
+      console.error("Failed to export ArgoCD template:", error);
+    }
+  };
+
+  const handleCopyArgoCDTemplate = async () => {
+    if (!argocdTemplate) return;
+    
+    try {
+      await navigator.clipboard.writeText(argocdTemplate);
+      pushSuccess("Copied ArgoCD template to clipboard");
+    } catch (error) {
+      const errorMsg = typeof error === 'string' ? error : (error as any)?.message ?? String(error);
+      pushError(`Failed to copy ArgoCD template: ${errorMsg}`);
+      console.error("Failed to copy ArgoCD template:", error);
+    }
   };
 
   const handleFileImport = useCallback(async (filePath: string) => {
@@ -408,6 +484,9 @@ export function EditorPanel() {
             onCancel={handleCancel}
             showSaveCancel={isEditing && !importedBinary}
             isValidBase64={isValidBase64}
+            createArgoCDSecret={createArgoCDSecret}
+            setCreateArgoCDSecret={setCreateArgoCDSecret}
+            isCreatingNew={isCreatingNew}
           />
 
           {isEditing && importedBinary ? (
@@ -421,6 +500,8 @@ export function EditorPanel() {
                 setIsBinary(false);
                 handleCancel();
               }}
+              createArgoCDSecret={createArgoCDSecret}
+              setCreateArgoCDSecret={setCreateArgoCDSecret}
             />
           ) : fetchedBinaryTooLarge && !isEditing ? (
             <BinaryTooLargePanel
@@ -472,6 +553,46 @@ export function EditorPanel() {
           </div>
         </div>
       )}
+
+      {/* ArgoCD External Secret Template Modal */}
+      <Modal
+        open={showArgoCDTemplateModal}
+        onClose={() => setShowArgoCDTemplateModal(false)}
+        title="ArgoCD External Secret Template"
+        size="lg"
+        actions={
+          <>
+            <Button
+              onClick={handleCopyArgoCDTemplate}
+              title="Copy template to clipboard"
+            >
+              <ClipboardCopy className="h-4 w-4 mr-1" /> Copy
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleExportArgoCDTemplate}
+              title="Export template to YAML file"
+            >
+              <Download className="h-4 w-4 mr-1" /> Export
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setShowArgoCDTemplateModal(false)}
+            >
+              Close
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <p className="text-sm opacity-70 mb-2">
+            ArgoCD External Secret template for your secret:
+          </p>
+          <pre className="bg-base-200 p-3 rounded-md text-xs overflow-x-auto max-h-96 overflow-y-auto font-mono">
+            {argocdTemplate}
+          </pre>
+        </div>
+      </Modal>
     </div>
   );
 }
