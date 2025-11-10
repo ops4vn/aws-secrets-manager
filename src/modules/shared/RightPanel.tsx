@@ -164,9 +164,6 @@ export function RightPanel() {
               title="Show deleted secrets"
               onClick={() => {
                 setShowDeleted(!showDeleted);
-                if (!showDeleted && profile) {
-                  listDeletedSecrets(profile);
-                }
               }}
             >
               <Trash2 className="h-4 w-4" />
