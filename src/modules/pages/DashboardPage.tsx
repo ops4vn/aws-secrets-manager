@@ -23,20 +23,13 @@ export function DashboardPage() {
 
   const initLoad = useCallback(async () => {
     await profileStore.initLoad(async (prof) => {
-      const cached = await api.loadCachedSecretNames(prof);
       const cachedMetadata = await api.loadCachedSecretMetadata(prof);
-
-      if (cached && cached.length > 0) {
-        secretsListStore.setShowSecretsTree(true);
-        useSecretsListStore.setState({ allNames: cached });
-
-        if (cachedMetadata) {
-          const metadataMap: Record<string, boolean> = {};
-          cachedMetadata.forEach((m) => {
-            metadataMap[m.name] = m.is_binary;
-          });
-          useSecretsListStore.setState({ secretMetadata: metadataMap });
-        }
+      if (cachedMetadata) {
+        const metadataMap: Record<string, boolean> = {};
+        cachedMetadata.forEach((m) => {
+          metadataMap[m.name] = m.is_binary;
+        });
+        useSecretsListStore.setState({ secretMetadata: metadataMap });
       }
     });
     await bookmarksStore.initLoad();
@@ -51,7 +44,7 @@ export function DashboardPage() {
       <aside
         className={`bg-base-100 border-r border-base-300 transition-transform duration-300 ease-in-out ${
           leftSidebarOpen
-            ? "w-96 p-4 translate-x-0"
+            ? "w-100 p-4 translate-x-0"
             : "w-0 -translate-x-full p-0"
         }`}
         aria-hidden={!leftSidebarOpen}

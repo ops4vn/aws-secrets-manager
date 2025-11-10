@@ -29,7 +29,7 @@ export const useSecretsListStore = create<State & Actions>((set, get) => ({
   setSearchQuery: (q) => set({ searchQuery: q }),
 
   listSecrets: async (profile, force = false) => {
-    const { pushInfo, pushWarn, pushSuccess } = useLogsStore.getState();
+    const { pushInfo, pushWarn, pushSuccess, pushError } = useLogsStore.getState();
     set({ showSecretsTree: true });
     if (!profile) {
       pushWarn("No profile selected");
@@ -53,10 +53,20 @@ export const useSecretsListStore = create<State & Actions>((set, get) => ({
       } catch { }
       set({ allNames: [], secretMetadata: {} });
     }
-    const names = await api.listSecrets(profile);
-    await api.saveCachedSecretNames(profile, names);
-    set({ allNames: names });
-    pushSuccess(`Loaded ${names.length} secrets`);
+    try {
+      const names = await api.listSecrets(profile);
+      if (Array.isArray(names)) {
+        await api.saveCachedSecretNames(profile, names);
+        set({ allNames: names });
+        pushSuccess(`Loaded ${names.length} secrets`);
+      } else {
+        pushWarn("No secrets returned");
+        set({ allNames: [] });
+      }
+    } catch (error) {
+      pushError(`Failed to list secrets: ${String(error)}`);
+      // Không ném lỗi ra ngoài để UI không bị kẹt
+    }
   },
 
   listDeletedSecrets: async (profile) => {

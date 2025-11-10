@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { api } from "../services/tauriApi";
 import { useLogsStore } from "./useLogsStore";
 import { useBookmarksStore } from "./useBookmarksStore";
+import { useSecretsListStore } from "./useSecretsListStore";
 
 type State = {
   profiles: string[];
@@ -34,6 +35,12 @@ export const useProfileStore = create<State & Actions>((set, get) => ({
     // Load bookmarks for the new profile
     const { loadBookmarksForProfile } = useBookmarksStore.getState();
     void loadBookmarksForProfile(p);
+    if (p) {
+      const { listSecrets } = useSecretsListStore.getState();
+      void listSecrets(p, false);
+    } else {
+      useSecretsListStore.setState({ showSecretsTree: false, allNames: [], secretMetadata: {} });
+    }
   },
 
   initLoad: async (onSecretsLoad) => {
@@ -61,17 +68,13 @@ export const useProfileStore = create<State & Actions>((set, get) => ({
         }
       }
       
-      // Load cached secrets for the selected/default profile
-      const profileToUse = st.selectedProfile ?? df;
+      // Load secrets automatically for the active profile
+      const profileToUse = get().selectedProfile ?? get().defaultProfile;
       if (profileToUse) {
-        const cached = await api.loadCachedSecretNames(profileToUse);
-        if (cached && cached.length > 0) {
-          pushSuccess(`Loaded ${cached.length} cached secrets`);
-          
-          // Callback để load secrets list vào SecretsListStore
-          if (onSecretsLoad) {
-            await onSecretsLoad(profileToUse);
-          }
+        const { listSecrets } = useSecretsListStore.getState();
+        await listSecrets(profileToUse, false);
+        if (onSecretsLoad) {
+          await onSecretsLoad(profileToUse);
         }
       }
 
@@ -127,11 +130,13 @@ export const useProfileStore = create<State & Actions>((set, get) => ({
       }
       set({ ssoValid: false, ssoChecking: false });
       pushWarn("SSO invalid");
+      await st.triggerSsoLogin();
       return false;
     } catch (e) {
       const msg = typeof e === 'string' ? e : (e as any)?.message ?? 'SSO check failed';
       set({ ssoValid: false, ssoChecking: false });
       pushError(String(msg));
+      await st.triggerSsoLogin();
       return false;
     }
   },

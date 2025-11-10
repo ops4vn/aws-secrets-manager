@@ -25,7 +25,7 @@ export function VersionInfo() {
   const handleCheckUpdate = async () => {
     setIsChecking(true);
     try {
-      await initCheck();
+      await initCheck(true);
     } catch (e) {
       pushError("Failed to check for updates");
     } finally {

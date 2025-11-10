@@ -11,7 +11,8 @@ type ButtonVariant =
   | "success"
   | "info"
   | "ghost"
-  | "link";
+  | "link"
+  | "outline";
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "size"> {
   size?: ButtonSize;
@@ -60,6 +61,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             "btn-info": variant === "info",
             "btn-ghost": variant === "ghost",
             "btn-link": variant === "link",
+            "btn-outline": variant === "outline",
           },
           active && "btn-active",
           square && "btn-square",

@@ -99,7 +99,7 @@ export function EditorToolbar({
         <>
           <Button
             size="xs"
-            variant={copyCopied ? "success" : "primary"}
+            variant={copyCopied ? "success" : "ghost"}
             onClick={async () => {
               if (content) {
                 await navigator.clipboard.writeText(content);
@@ -121,6 +121,7 @@ export function EditorToolbar({
               size="xs"
               onClick={onExport}
               title="Export secret to JSON file"
+              variant="ghost"
             >
               <Download className="h-3.5 w-3.5 mr-1" /> Export
             </Button>
@@ -143,7 +144,7 @@ export function EditorToolbar({
       {hasContent && isBinary && isValidBase64(content) && (
         <Button
           size="xs"
-          variant={isDecoded ? "info" : "primary"}
+          variant={isDecoded ? "info" : "ghost"}
           onClick={() => setIsDecoded(!isDecoded)}
           title={isDecoded ? "Show encoded (base64)" : "Show decoded (text)"}
         >
@@ -160,7 +161,7 @@ export function EditorToolbar({
         <Button
           ref={keyPickerButtonRef}
           size="xs"
-          variant={copyByKeyCopied ? "success" : "primary"}
+          variant={copyByKeyCopied ? "success" : "ghost"}
           onClick={() => {
             setShowKeyPicker((s) => !s);
             if (copyByKeyCopied) setCopyByKeyCopied(false);
@@ -179,7 +180,7 @@ export function EditorToolbar({
       {!isEditing && hasContent && (
         <Button
           size="xs"
-          variant={wrap ? "success" : "primary"}
+          variant={wrap ? "success" : "ghost"}
           onClick={() => setWrap(!wrap)}
           title="Toggle wrap lines"
         >

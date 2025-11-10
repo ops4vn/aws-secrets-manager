@@ -18,7 +18,7 @@ type UpdaterState = {
 };
 
 type UpdaterActions = {
-  initCheck: () => Promise<void>;
+  initCheck: (forcePrompt?: boolean) => Promise<void>;
   startDownload: () => Promise<void>;
   restartAndInstall: () => Promise<void>;
   later: () => Promise<void>;
@@ -35,7 +35,7 @@ export const useUpdaterStore = create<UpdaterState & UpdaterActions>((set, get) 
   deferUntil: null,
   currentUpdate: null,
 
-  initCheck: async () => {
+  initCheck: async (forcePrompt = false) => {
     try {
       const { pushInfo, pushSuccess } = useLogsStore.getState();
       pushInfo("Checking for updates...");
@@ -46,7 +46,7 @@ export const useUpdaterStore = create<UpdaterState & UpdaterActions>((set, get) 
       const update = await check();
       if (update) {
         set({ currentUpdate: update });
-        const shouldPrompt = (du == null) || ((oc || 0) >= (du as number));
+        const shouldPrompt = forcePrompt || du == null || (oc || 0) >= (du as number);
         pushInfo(`Update available ${update.currentVersion} -> ${update.version}`);
         if (shouldPrompt) set({ showUpdateModal: true });
       } else {

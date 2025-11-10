@@ -163,7 +163,7 @@ export function TopBar() {
   return (
     <div className="navbar bg-base-100 border-b border-base-300 px-4 gap-4">
       <div className="flex flex-1 items-center gap-3">
-        <span className="whitespace-nowrap">ARN:</span>
+        <span className="whitespace-nowrap">ID:</span>
         <Input
           size="sm"
           value={secretId}
@@ -177,16 +177,16 @@ export function TopBar() {
             className="btn btn-success btn-xs normal-case ml-2"
             title="Create mode"
           >
-            <span className="w-2 h-2 rounded-full bg-white/80 mr-2"></span>
+            <span className="w-2 h-2 rounded-full bg-black mr-2"></span>
             Create mode
           </div>
         )}
         {!isCreatingNew && isEditing && (
           <div
-            className="btn btn-error btn-xs normal-case ml-2"
+            className="btn btn-warning btn-xs normal-case ml-2"
             title="Edit mode"
           >
-            <span className="w-2 h-2 rounded-full bg-white/80 mr-2"></span>
+            <span className="w-2 h-2 rounded-full bg-error/80 mr-2"></span>
             Edit mode
           </div>
         )}
@@ -195,6 +195,7 @@ export function TopBar() {
       <div className="flex items-center gap-2">
         <Button
           size="sm"
+          variant="ghost"
           disabled={isEditing}
           title={isEditing ? "Cancel edit first to prevent data loss" : ""}
           onClick={() => {
@@ -202,10 +203,11 @@ export function TopBar() {
             fetchSecretById(secretId, profile);
           }}
         >
-          <LockOpen className="h-4 w-4 mr-1" /> Get Secret
+          <LockOpen className="h-4 w-4 mr-1" /> Get
         </Button>
         <Button
           size="sm"
+          variant="ghost"
           disabled={isEditing || !secretId || isBinaryTooLarge}
           title={
             !secretId
@@ -222,7 +224,8 @@ export function TopBar() {
         </Button>
         <Button
           size="sm"
-          variant="error"
+          variant="ghost"
+          className="text-error"
           disabled={isEditing || !activeTabId}
           title={
             !activeTabId
@@ -237,6 +240,7 @@ export function TopBar() {
         </Button>
         <Button
           size="sm"
+          variant="ghost"
           disabled={isEditing}
           title={isEditing ? "Finish current edit first" : ""}
           onClick={() => startCreateNewEditor()}
@@ -245,6 +249,7 @@ export function TopBar() {
         </Button>
         <Button
           size="sm"
+          variant="ghost"
           disabled={isEditing}
           title={isEditing ? "Finish current edit first" : "Import JSON file"}
           onClick={() => fileInputRef.current?.click()}
