@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   ClipboardCheck,
   ClipboardCopy,
+  ClipboardList,
+  CopyPlus,
   Eye,
   EyeOff,
   WrapText,
@@ -9,6 +11,8 @@ import {
   X,
   Download,
   AlertCircle,
+  Edit3,
+  Trash2,
 } from "lucide-react";
 import { Button } from "../components/Button";
 
@@ -32,10 +36,21 @@ type Props = {
   createArgoCDSecret?: boolean;
   setCreateArgoCDSecret?: (v: boolean) => void;
   isCreatingNew?: boolean;
+  onEdit?: () => void;
+  onClone?: () => void;
+  cloneDisabled?: boolean;
+  cloneDisabledReason?: string;
+  editDisabled?: boolean;
+  editDisabledReason?: string;
+  onDelete?: () => void;
+  deleteDisabled?: boolean;
+  deleteDisabledReason?: string;
+  onCopyTemplate?: () => void;
+  copyTemplateDisabled?: boolean;
+  copyTemplateDisabledReason?: string;
 };
 
 export function EditorToolbar({
-  label = "Secret content:",
   isActiveProd,
   viewText,
   isEditing,
@@ -54,6 +69,18 @@ export function EditorToolbar({
   createArgoCDSecret = false,
   setCreateArgoCDSecret,
   isCreatingNew = false,
+  onEdit,
+  onClone,
+  cloneDisabled = false,
+  cloneDisabledReason = "",
+  editDisabled = false,
+  editDisabledReason = "",
+  onDelete,
+  deleteDisabled = false,
+  deleteDisabledReason = "",
+  onCopyTemplate,
+  copyTemplateDisabled = false,
+  copyTemplateDisabledReason = "",
 }: Props) {
   const [copyCopied, setCopyCopied] = useState(false);
   const [copyByKeyCopied, setCopyByKeyCopied] = useState(false);
@@ -81,10 +108,12 @@ export function EditorToolbar({
   }, [showKeyPicker]);
 
   const hasContent = (content ?? "").length > 0;
+  const showRightAlignedActions = Boolean(
+    onEdit || onClone || onDelete || showSaveCancel
+  );
 
   return (
     <div className="flex items-center gap-2 mb-2 relative">
-      <span className="opacity-70">{label}</span>
       {isActiveProd && (
         <span className="badge bg-error text-white badge-sm font-bold flex items-center gap-1">
           <AlertCircle className="h-3.5 w-3.5" />
@@ -116,6 +145,26 @@ export function EditorToolbar({
             {copyCopied ? "Copied" : "Copy"}
           </Button>
 
+          {onCopyTemplate && (
+            <Button
+              size="xs"
+              variant="ghost"
+              disabled={copyTemplateDisabled}
+              title={
+                copyTemplateDisabled
+                  ? copyTemplateDisabledReason
+                  : "Copy ArgoCD External Secret template"
+              }
+              onClick={() => {
+                if (!copyTemplateDisabled) {
+                  onCopyTemplate();
+                }
+              }}
+            >
+              <ClipboardList className="h-3.5 w-3.5 mr-1" /> Copy template
+            </Button>
+          )}
+
           {canExport && (
             <Button
               size="xs"
@@ -127,7 +176,7 @@ export function EditorToolbar({
             </Button>
           )}
 
-          {isCreatingNew && !isBinary && setCreateArgoCDSecret && (
+          {(isCreatingNew || isEditing) && !isBinary && setCreateArgoCDSecret && (
             <label className="label cursor-pointer gap-2">
               <input
                 type="checkbox"
@@ -229,15 +278,61 @@ export function EditorToolbar({
           </ul>
         </div>
       )}
-
-      {showSaveCancel && (
+      {showRightAlignedActions && (
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="success" onClick={onSave}>
-            <Save className="h-4 w-4 mr-1" /> Save
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onCancel}>
-            <X className="h-4 w-4 mr-1" /> Cancel
-          </Button>
+          {onEdit && (
+            <Button
+              size="xs"
+              variant="ghost"
+              disabled={editDisabled}
+              title={editDisabled ? editDisabledReason : ""}
+              onClick={() => {
+                if (!editDisabled) onEdit();
+              }}
+            >
+              <Edit3 className="h-3.5 w-3.5 mr-1" /> Edit
+            </Button>
+          )}
+
+          {onClone && (
+            <Button
+              size="xs"
+              variant="ghost"
+              disabled={cloneDisabled}
+              title={cloneDisabled ? cloneDisabledReason : "Clone secret"}
+              onClick={() => {
+                if (!cloneDisabled) onClone();
+              }}
+            >
+              <CopyPlus className="h-3.5 w-3.5 mr-1" /> Clone
+            </Button>
+          )}
+
+          {onDelete && (
+            <Button
+              size="xs"
+              variant="ghost"
+              className="text-error"
+              disabled={deleteDisabled}
+              title={deleteDisabled ? deleteDisabledReason : ""}
+              onClick={() => {
+                if (!deleteDisabled) onDelete();
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+            </Button>
+          )}
+
+          {showSaveCancel && (
+            <>
+              <Button size="sm" variant="success" onClick={onSave}>
+                <Save className="h-4 w-4 mr-1" /> Save
+              </Button>
+              <Button size="sm" variant="ghost" onClick={onCancel}>
+                <X className="h-4 w-4 mr-1" /> Cancel
+              </Button>
+            </>
+          )}
         </div>
       )}
     </div>

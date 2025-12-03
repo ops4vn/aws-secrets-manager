@@ -66,12 +66,42 @@ export function useArgoCDTemplate() {
     }
   };
 
+  const copyTemplateForSecret = async (
+    secretId: string | undefined,
+    isBinary: boolean,
+    binaryFileName?: string
+  ) => {
+    if (!secretId) {
+      pushError("Secret ID is required to copy ArgoCD template");
+      return;
+    }
+
+    const generatedTemplate = generateArgoCDExternalSecretTemplate(
+      secretId,
+      isBinary,
+      binaryFileName
+    );
+
+    try {
+      await navigator.clipboard.writeText(generatedTemplate);
+      pushSuccess("Copied ArgoCD template to clipboard");
+    } catch (error) {
+      const errorMsg =
+        typeof error === "string"
+          ? error
+          : (error as any)?.message ?? String(error);
+      pushError(`Failed to copy ArgoCD template: ${errorMsg}`);
+      console.error("Failed to copy ArgoCD template:", error);
+    }
+  };
+
   return {
     showModal,
     template,
     showTemplate,
     exportTemplate,
     copyTemplate,
+    copyTemplateForSecret,
     closeModal: () => setShowModal(false),
   };
 }

@@ -17,6 +17,11 @@ import { useEditorFocus } from "./hooks/useEditorFocus";
 import { useFileImport } from "./hooks/useFileImport";
 import { useArgoCDTemplate } from "./hooks/useArgoCDTemplate";
 import { getTabDisplayName, isProdSecret } from "./utils/tabDisplayUtils";
+import { useLogsStore } from "../store/useLogsStore";
+import { useSecretsListStore } from "../store/useSecretsListStore";
+import { api } from "../services/tauriApi";
+import { Modal } from "./components/Modal";
+import { Button } from "./components/Button";
 
 export function EditorPanel() {
   const { selectedProfile, defaultProfile } = useProfileStore();
@@ -31,6 +36,7 @@ export function EditorPanel() {
     isFetchingSecret,
     fetchingSecretId,
     fetchedBinaryTooLarge,
+    secretId,
     save: saveEditor,
     cancelEdit: cancelEditEditor,
     switchTab,
@@ -40,16 +46,21 @@ export function EditorPanel() {
     setImportedBinary,
     importedBinary,
     bindEvents,
+    startEdit: startEditEditor,
+    startCreateNew: startCreateNewEditor,
   } = useEditorStore();
 
   const isDarkTheme = useDarkTheme();
   const [wrap, setWrap] = useState<boolean>(false);
   const [isDecoded, setIsDecoded] = useState<boolean>(false);
   const [createArgoCDSecret, setCreateArgoCDSecret] = useState<boolean>(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const editorViewRef = useRef<EditorView | null>(null);
   
   const { isDragging } = useFileImport();
   const argocdTemplate = useArgoCDTemplate();
+  const { pushInfo, pushError, pushSuccess } = useLogsStore();
+  const { listSecrets, listDeletedSecrets } = useSecretsListStore();
 
   useEffect(() => {
     bindEvents();
@@ -74,6 +85,67 @@ export function EditorPanel() {
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
   const isActiveProd = activeTab ? isProdSecret(activeTab.secretId) : false;
+  const isBinaryTooLarge =
+    !!fetchedBinaryTooLarge || (activeTab?.isBinary && activeTab?.isTooLarge);
+
+  const isEditDisabled = isEditing || !secretId || isBinaryTooLarge;
+  const editDisabledReason = !secretId
+    ? "Get a secret first to edit"
+    : isEditing
+    ? "Already in edit mode"
+    : isBinaryTooLarge
+    ? "Cannot edit binary secret larger than 50KB"
+    : "";
+
+  const isDeleteDisabled = isEditing || !activeTabId;
+  const deleteDisabledReason = !activeTabId
+    ? "Select a secret tab to delete"
+    : isEditing
+    ? "Cancel edit first to delete"
+    : "";
+
+  const isCloneDisabled = isEditing || !secretId || isBinaryTooLarge;
+  const cloneDisabledReason = !secretId
+    ? "Get a secret first to clone"
+    : isEditing
+    ? "Finish current edit before cloning"
+    : isBinaryTooLarge
+    ? "Cannot clone binary secret larger than 50KB"
+    : "";
+
+  const canCopyArgoTemplate = Boolean(secretId);
+  const copyTemplateDisabledReason = canCopyArgoTemplate
+    ? ""
+    : "Secret ID is required to copy ArgoCD template";
+
+  const handleDeleteClick = () => {
+    if (!activeTabId || !secretId) return;
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!activeTabId || !secretId) return;
+
+    const profile = selectedProfile ?? defaultProfile;
+    if (!profile) {
+      pushError("No profile selected");
+      setShowDeleteModal(false);
+      return;
+    }
+
+    try {
+      pushInfo(`Deleting secret: ${secretId}`);
+      await api.deleteSecret(profile, secretId);
+      pushSuccess(`Deleted secret: ${secretId}`);
+      closeTab(activeTabId);
+      setShowDeleteModal(false);
+      await listSecrets(profile, true);
+      await listDeletedSecrets(profile);
+    } catch (error) {
+      pushError(`Failed to delete secret: ${String(error)}`);
+      setShowDeleteModal(false);
+    }
+  };
 
   const handleSave = async () => {
     const profile = selectedProfile ?? defaultProfile;
@@ -100,6 +172,53 @@ export function EditorPanel() {
       // Error đã được xử lý trong store
       console.error("Save failed:", error);
     }
+  };
+
+  const handleCopyArgoTemplate = async () => {
+    const currentSecretId = useEditorStore.getState().secretId;
+    const currentIsBinary = useEditorStore.getState().isBinary;
+    const currentImportedBinary = useEditorStore.getState().importedBinary;
+
+    await argocdTemplate.copyTemplateForSecret(
+      currentSecretId,
+      currentIsBinary,
+      currentImportedBinary?.name
+    );
+  };
+
+  const handleCloneSecret = () => {
+    if (!secretId) return;
+
+    const currentState = useEditorStore.getState();
+    const currentContent = currentState.editorContent;
+    const currentIsBinary = currentState.isBinary;
+    const currentImportedBinary = currentState.importedBinary;
+
+    startCreateNewEditor();
+
+    const clonedContent =
+      currentIsBinary && currentImportedBinary
+        ? currentImportedBinary.base64
+        : currentContent;
+
+    onChange(clonedContent);
+    setIsBinary(currentIsBinary);
+
+    if (currentIsBinary && currentImportedBinary) {
+      setImportedBinary({ ...currentImportedBinary });
+    } else {
+      setImportedBinary(null);
+    }
+
+    setSecretId(secretId);
+
+    setTimeout(() => {
+      const secretIdInput = document.querySelector(
+        'input[placeholder="my/app/secret"]'
+      ) as HTMLInputElement | null;
+      secretIdInput?.focus();
+      secretIdInput?.select();
+    }, 100);
   };
 
   const handleCancel = () => {
@@ -202,6 +321,18 @@ export function EditorPanel() {
             createArgoCDSecret={createArgoCDSecret}
             setCreateArgoCDSecret={setCreateArgoCDSecret}
             isCreatingNew={isCreatingNew}
+            onEdit={!isEditing ? startEditEditor : undefined}
+            onClone={!isEditing ? handleCloneSecret : undefined}
+            cloneDisabled={isCloneDisabled}
+            cloneDisabledReason={cloneDisabledReason}
+            editDisabled={isEditDisabled}
+            editDisabledReason={editDisabledReason}
+            onDelete={!isEditing ? handleDeleteClick : undefined}
+            deleteDisabled={isDeleteDisabled}
+            deleteDisabledReason={deleteDisabledReason}
+            onCopyTemplate={handleCopyArgoTemplate}
+            copyTemplateDisabled={!canCopyArgoTemplate}
+            copyTemplateDisabledReason={copyTemplateDisabledReason}
           />
 
           {isEditing && importedBinary ? (
@@ -259,6 +390,27 @@ export function EditorPanel() {
         onCopy={argocdTemplate.copyTemplate}
         onExport={argocdTemplate.exportTemplate}
       />
+
+      <Modal
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete secret?"
+        actions={
+          <>
+            <Button variant="error" onClick={confirmDelete}>
+              Delete
+            </Button>
+            <Button onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+          </>
+        }
+      >
+        <p>
+          Are you sure you want to delete secret{" "}
+          <strong>"{secretId}"</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }
