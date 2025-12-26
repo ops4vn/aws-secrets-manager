@@ -17,6 +17,63 @@ import { useLogsStore } from "../store/useLogsStore";
 import { Input } from "./components/Input";
 import { Button } from "./components/Button";
 
+// Helper function to get environment style class
+function getEnvStyleClass(text: string): string | null {
+  const lowerText = text.toLowerCase();
+  if (lowerText === 'uat' || lowerText === 'dev') {
+    return 'font-bold text-warning';
+  } else if (lowerText === 'staging' || lowerText === 'stg') {
+    return 'font-bold text-info';
+  } else if (lowerText === 'prod') {
+    return 'font-bold text-error';
+  }
+  return null;
+}
+
+// Helper function to highlight environment keywords and search query in secret names
+function HighlightedSecretName({ name, searchQuery }: { name: string; searchQuery: string }) {
+  // Combined regex: environment keywords + search query (if provided)
+  const envKeywords = 'dev|uat|staging|stg|prod';
+  const escapedQuery = searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  
+  // Build regex pattern: env keywords OR search query (if not empty)
+  const pattern = escapedQuery 
+    ? `(${envKeywords}|${escapedQuery})`
+    : `(${envKeywords})`;
+  const regex = new RegExp(pattern, 'gi');
+  
+  const parts = name.split(regex);
+  
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (!part) return null;
+        
+        // Check if it's an environment keyword
+        const envClass = getEnvStyleClass(part);
+        if (envClass) {
+          return (
+            <span key={index} className={envClass}>
+              {part}
+            </span>
+          );
+        }
+        
+        // Check if it matches search query
+        if (escapedQuery && part.toLowerCase() === searchQuery.trim().toLowerCase()) {
+          return (
+            <span key={index} className="text-primary font-semibold underline underline-offset-2">
+              {part}
+            </span>
+          );
+        }
+        
+        return <span key={index}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 export function RightPanel() {
   const { selectedProfile, defaultProfile } = useProfileStore();
   const {
@@ -35,6 +92,10 @@ export function RightPanel() {
   const [localQuery, setLocalQuery] = useState<string>(searchQuery);
   const [showSearch, setShowSearch] = useState<boolean>(false);
   const [showDeleted, setShowDeleted] = useState<boolean>(false);
+  // Search options
+  const [useRegex, setUseRegex] = useState<boolean>(false);
+  const [matchWord, setMatchWord] = useState<boolean>(false);
+  const [caseSensitive, setCaseSensitive] = useState<boolean>(false);
   const trimmed = useMemo(() => localQuery.trim(), [localQuery]);
   const profile = selectedProfile ?? defaultProfile;
 
@@ -53,9 +114,50 @@ export function RightPanel() {
     }
   }, [profile, showDeleted, listDeletedSecrets]);
 
-  const results = trimmed
-    ? allNames.filter((n) => n.toLowerCase().includes(trimmed.toLowerCase()))
-    : [];
+  const results = useMemo(() => {
+    if (!trimmed) return [];
+    
+    return allNames.filter((name) => {
+      try {
+        if (useRegex) {
+          // Regex mode
+          const flags = caseSensitive ? 'g' : 'gi';
+          const regex = new RegExp(trimmed, flags);
+          return regex.test(name);
+        } else {
+          // Normal search
+          const searchName = caseSensitive ? name : name.toLowerCase();
+          const searchTerm = caseSensitive ? trimmed : trimmed.toLowerCase();
+          
+          if (matchWord) {
+            // Exact match on path segments (split by /)
+            // This treats the whole segment as a unit, so "hdb-notification-service" 
+            // won't match "hdb-notification-service-firebase"
+            const segments = name.split('/');
+            const searchSegments = trimmed.split('/');
+            
+            // Check if search term matches any segment exactly, or matches the full path
+            if (caseSensitive) {
+              return segments.some(seg => seg === trimmed) || 
+                     name === trimmed ||
+                     segments.join('/').includes(searchSegments.join('/')) && 
+                     segments.some(seg => searchSegments.includes(seg));
+            } else {
+              const lowerSegments = segments.map(s => s.toLowerCase());
+              const lowerSearchTerm = trimmed.toLowerCase();
+              return lowerSegments.some(seg => seg === lowerSearchTerm) || 
+                     name.toLowerCase() === lowerSearchTerm;
+            }
+          }
+          
+          return searchName.includes(searchTerm);
+        }
+      } catch {
+        // Invalid regex, fall back to simple includes
+        return name.toLowerCase().includes(trimmed.toLowerCase());
+      }
+    });
+  }, [trimmed, allNames, useRegex, matchWord, caseSensitive]);
 
   const handleSetSearchShow = useCallback(() => {
     setShowSearch((s) => {
@@ -172,7 +274,7 @@ export function RightPanel() {
         </div>
 
         {showSearch && (
-          <div className="flex items-center gap-2 mt-2">
+          <div className="mt-2 space-y-2">
             <div className="join w-full">
               <Input
                 size="sm"
@@ -181,7 +283,10 @@ export function RightPanel() {
                 value={localQuery}
                 onChange={(e) => setLocalQuery(e.target.value)}
                 ref={searchInputRef}
-                autoComplete="false"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 className="w-full"
               />
               {trimmed && (
@@ -196,6 +301,36 @@ export function RightPanel() {
                   <XCircle className="h-4 w-4" />
                 </Button>
               )}
+            </div>
+            {/* Search options */}
+            <div className="flex flex-wrap gap-3 text-xs">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-xs checkbox-primary"
+                  checked={useRegex}
+                  onChange={(e) => setUseRegex(e.target.checked)}
+                />
+                <span className="text-base-content/70">Regex</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-xs checkbox-primary"
+                  checked={matchWord}
+                  onChange={(e) => setMatchWord(e.target.checked)}
+                />
+                <span className="text-base-content/70">Word</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-xs checkbox-primary"
+                  checked={caseSensitive}
+                  onChange={(e) => setCaseSensitive(e.target.checked)}
+                />
+                <span className="text-base-content/70">Aa</span>
+              </label>
             </div>
           </div>
         )}
@@ -219,7 +354,9 @@ export function RightPanel() {
                   className="text-left text-base-content hover:text-primary w-full whitespace-normal wrap-break-word"
                   onClick={() => handleSelect(name)}
                 >
-                  <span className="text-sm text-base-content/80">{name}</span>
+                  <span className="text-sm text-base-content/80">
+                    <HighlightedSecretName name={name} searchQuery={trimmed} />
+                  </span>
                 </button>
                 {secretMetadata[name] === true && (
                   <span className="badge badge-xs badge-warning">BINARY</span>
