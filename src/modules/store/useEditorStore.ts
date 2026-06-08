@@ -239,8 +239,12 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
   },
 
   startEdit: () => {
+    const st = get();
     const { pushInfo } = useLogsStore.getState();
-    set({ isEditing: true, isCreatingNew: false });
+    const tabs = st.activeTabId
+      ? st.tabs.map(t => (t.id === st.activeTabId ? { ...t, isEditing: true } : t))
+      : st.tabs;
+    set({ isEditing: true, isCreatingNew: false, tabs });
     pushInfo("Switched to edit mode");
   },
 
@@ -325,14 +329,16 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
       } else if (st.activeTabId) {
         // Khi update secret, cập nhật tab hiện tại
         const updatedTabs = st.tabs.map(t =>
-          t.id === st.activeTabId 
-            ? { 
-                ...t, 
-                content: tabContent, 
+          t.id === st.activeTabId
+            ? {
+                ...t,
+                content: tabContent,
+                originalContent: tabContent,
+                isEditing: false,
                 isBinary: st.isBinary,
                 isTooLarge: tooLarge ? true : false,
                 binarySize: tooLarge ? tooLarge.size : undefined,
-              } 
+              }
             : t
         );
         set({ 
@@ -356,20 +362,26 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
     if (st.activeTabId) {
       const tab = st.tabs.find(t => t.id === st.activeTabId);
       if (tab) {
-        // Restore tất cả state từ tab
+        // Restore tất cả state từ originalContent (bỏ các thay đổi chưa lưu)
         let tooLarge: { name: string; size: number } | null = null;
         if (tab.isBinary) {
           if (tab.isTooLarge && tab.binarySize) {
             tooLarge = { name: tab.secretId, size: tab.binarySize };
-          } else if (tab.content) {
-            const sizeBytes = st._computeBase64Size(tab.content);
+          } else if (tab.originalContent) {
+            const sizeBytes = st._computeBase64Size(tab.originalContent);
             if (sizeBytes > 50 * 1024) {
               tooLarge = { name: tab.secretId, size: tab.binarySize ?? 0 };
             }
           }
         }
+        const restoredTabs = st.tabs.map(t =>
+          t.id === st.activeTabId
+            ? { ...t, content: t.originalContent, isEditing: false }
+            : t
+        );
         set({
-          editorContent: tab.content,
+          tabs: restoredTabs,
+          editorContent: tab.originalContent,
           secretId: tab.secretId,
           isBinary: tab.isBinary,
           isEditing: false,
@@ -387,7 +399,7 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
   openTab: (secretId: string, content: string, isBinary: boolean, meta?: { isTooLarge?: boolean; binarySize?: number }) => {
     const st = get();
     const tabId = `tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const newTab: EditorTab = { id: tabId, secretId, content, isBinary, isTooLarge: meta?.isTooLarge, binarySize: meta?.binarySize };
+    const newTab: EditorTab = { id: tabId, secretId, content, originalContent: content, isEditing: false, isBinary, isTooLarge: meta?.isTooLarge, binarySize: meta?.binarySize };
     set({ tabs: [...st.tabs, newTab], activeTabId: tabId });
     return tabId;
   },
@@ -428,7 +440,7 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
       secretId: activeTab?.secretId ?? "",
       editorContent: activeTab?.content ?? "",
       isBinary: activeTab?.isBinary ?? false,
-      isEditing: false,
+      isEditing: activeTab?.isEditing ?? false,
       isCreatingNew: false,
       fetchedBinaryTooLarge: tooLarge,
     });
@@ -446,7 +458,7 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
       secretId: tabToKeep.secretId,
       editorContent: tabToKeep.content,
       isBinary: tabToKeep.isBinary,
-      isEditing: false,
+      isEditing: tabToKeep.isEditing ?? false,
       isCreatingNew: false,
     });
 
@@ -484,7 +496,7 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
         secretId: tab.secretId,
         editorContent: tab.content,
         isBinary: tab.isBinary,
-        isEditing: false,
+        isEditing: tab.isEditing ?? false,
         isCreatingNew: false,
         fetchedBinaryTooLarge: tooLarge,
       });

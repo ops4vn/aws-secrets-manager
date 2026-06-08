@@ -5,9 +5,14 @@ type Props = {
   wrap: boolean;
   isBinary: boolean;
   isDecoded: boolean;
+  // When true, JSON/text values are masked (keys stay visible). Used in the
+  // read-only view so secret values are not shown until revealed.
+  masked?: boolean;
 };
 
-export function HighlightedContent({ content, wrap, isBinary, isDecoded }: Props) {
+const MASK = "••••••";
+
+export function HighlightedContent({ content, wrap, isBinary, isDecoded, masked = false }: Props) {
   if (!content) return null;
 
   if (!isBinary) {
@@ -16,14 +21,14 @@ export function HighlightedContent({ content, wrap, isBinary, isDecoded }: Props
       const pretty = JSON.stringify(parsed, null, 2);
       return (
         <pre className={`overflow-auto max-h-[48vh] p-3 rounded-md bg-base-100 border border-base-300 text-sm ${wrap ? "whitespace-pre-wrap break-words" : ""}`}>
-          {renderJsonHighlighted(pretty)}
+          {renderJsonHighlighted(pretty, masked)}
         </pre>
       );
     } catch {}
 
     return (
       <pre className={`overflow-auto max-h-[48vh] p-3 rounded-md bg-base-100 border border-base-300 text-sm ${wrap ? "whitespace-pre-wrap break-words" : ""}`}>
-        {content}
+        {masked ? content.split("\n").map((l) => (l.trim() ? MASK : l)).join("\n") : content}
       </pre>
     );
   }
@@ -71,18 +76,18 @@ export function HighlightedContent({ content, wrap, isBinary, isDecoded }: Props
   return null;
 }
 
-function renderJsonHighlighted(json: string) {
+function renderJsonHighlighted(json: string, masked: boolean) {
   const lines = json.split("\n");
   return (
     <code className="block font-mono">
       {lines.map((line, i) => (
-        <div key={i}>{highlightJsonLine(line)}</div>
+        <div key={i}>{highlightJsonLine(line, masked)}</div>
       ))}
     </code>
   );
 }
 
-function highlightJsonLine(line: string) {
+function highlightJsonLine(line: string, masked: boolean) {
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   const regex = /(\s*".*?"\s*:)|(\".*?\")|(-?\b\d+(?:\.\d+)?\b)|(\btrue\b|\bfalse\b|\bnull\b)/g;
@@ -97,6 +102,7 @@ function highlightJsonLine(line: string) {
     const num = m[3];
     const boolnull = m[4];
     if (key)
+      // Keys are never masked.
       parts.push(
         <span key={parts.length} className="text-sky-600">
           {key}
@@ -105,19 +111,19 @@ function highlightJsonLine(line: string) {
     else if (str)
       parts.push(
         <span key={parts.length} className="text-emerald-600">
-          {str}
+          {masked ? `"${MASK}"` : str}
         </span>
       );
     else if (num)
       parts.push(
         <span key={parts.length} className="text-amber-600">
-          {num}
+          {masked ? MASK : num}
         </span>
       );
     else if (boolnull)
       parts.push(
         <span key={parts.length} className="text-fuchsia-600">
-          {boolnull}
+          {masked ? MASK : boolnull}
         </span>
       );
     lastIndex = regex.lastIndex;

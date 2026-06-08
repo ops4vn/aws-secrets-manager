@@ -439,6 +439,217 @@ pub async fn trigger_sso_login(app: tauri::AppHandle, profile: String) -> Result
     Ok(true)
 }
 
+// ==== Describe / Tags / Versions ====
+
+#[derive(Serialize, Clone, serde::Deserialize)]
+pub struct SecretTag {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Serialize, Clone)]
+pub struct SecretDescription {
+    pub arn: Option<String>,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    // Dates as epoch seconds; the frontend multiplies by 1000 for Date().
+    pub created_date: Option<i64>,
+    pub last_changed_date: Option<i64>,
+    pub last_accessed_date: Option<i64>,
+    pub last_rotated_date: Option<i64>,
+    pub next_rotation_date: Option<i64>,
+    pub deleted_date: Option<i64>,
+    pub rotation_enabled: Option<bool>,
+    pub rotation_lambda_arn: Option<String>,
+    pub rotation_automatically_after_days: Option<i64>,
+    pub primary_region: Option<String>,
+    pub tags: Vec<SecretTag>,
+}
+
+#[derive(Serialize, Clone)]
+pub struct SecretVersion {
+    pub version_id: String,
+    pub version_stages: Vec<String>,
+    pub created_date: Option<i64>,
+    pub last_accessed_date: Option<i64>,
+}
+
+async fn sm_client(profile: Option<String>) -> aws_sdk_secretsmanager::Client {
+    let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
+    if let Some(p) = profile {
+        loader = loader.profile_name(p);
+    }
+    let config = loader.load().await;
+    aws_sdk_secretsmanager::Client::new(&config)
+}
+
+#[tauri::command]
+pub async fn describe_secret(
+    profile: Option<String>,
+    secret_id: String,
+) -> Result<SecretDescription, String> {
+    let client = sm_client(profile).await;
+    let resp = client
+        .describe_secret()
+        .secret_id(&secret_id)
+        .send()
+        .await
+        .map_err(|e| format_sdk_err(&e))?;
+
+    let tags = resp
+        .tags()
+        .iter()
+        .map(|t| SecretTag {
+            key: t.key().unwrap_or("").to_string(),
+            value: t.value().unwrap_or("").to_string(),
+        })
+        .collect();
+
+    Ok(SecretDescription {
+        arn: resp.arn().map(|s| s.to_string()),
+        name: resp.name().map(|s| s.to_string()),
+        description: resp.description().map(|s| s.to_string()),
+        created_date: resp.created_date().map(|d| d.secs()),
+        last_changed_date: resp.last_changed_date().map(|d| d.secs()),
+        last_accessed_date: resp.last_accessed_date().map(|d| d.secs()),
+        last_rotated_date: resp.last_rotated_date().map(|d| d.secs()),
+        next_rotation_date: resp.next_rotation_date().map(|d| d.secs()),
+        deleted_date: resp.deleted_date().map(|d| d.secs()),
+        rotation_enabled: resp.rotation_enabled(),
+        rotation_lambda_arn: resp.rotation_lambda_arn().map(|s| s.to_string()),
+        rotation_automatically_after_days: resp
+            .rotation_rules()
+            .and_then(|r| r.automatically_after_days()),
+        primary_region: resp.primary_region().map(|s| s.to_string()),
+        tags,
+    })
+}
+
+#[tauri::command]
+pub async fn tag_secret(
+    profile: Option<String>,
+    secret_id: String,
+    tags: Vec<SecretTag>,
+) -> Result<String, String> {
+    let client = sm_client(profile).await;
+    let sdk_tags: Vec<aws_sdk_secretsmanager::types::Tag> = tags
+        .into_iter()
+        .map(|t| {
+            aws_sdk_secretsmanager::types::Tag::builder()
+                .key(t.key)
+                .value(t.value)
+                .build()
+        })
+        .collect();
+    client
+        .tag_resource()
+        .secret_id(&secret_id)
+        .set_tags(Some(sdk_tags))
+        .send()
+        .await
+        .map_err(|e| format_sdk_err(&e))?;
+    Ok(format!("Tagged secret: {secret_id}"))
+}
+
+#[tauri::command]
+pub async fn untag_secret(
+    profile: Option<String>,
+    secret_id: String,
+    keys: Vec<String>,
+) -> Result<String, String> {
+    let client = sm_client(profile).await;
+    client
+        .untag_resource()
+        .secret_id(&secret_id)
+        .set_tag_keys(Some(keys))
+        .send()
+        .await
+        .map_err(|e| format_sdk_err(&e))?;
+    Ok(format!("Untagged secret: {secret_id}"))
+}
+
+#[tauri::command]
+pub async fn list_secret_versions(
+    profile: Option<String>,
+    secret_id: String,
+) -> Result<Vec<SecretVersion>, String> {
+    let client = sm_client(profile).await;
+    let mut out = Vec::new();
+    let mut next: Option<String> = None;
+    loop {
+        let mut req = client
+            .list_secret_version_ids()
+            .secret_id(&secret_id)
+            .include_deprecated(true)
+            .max_results(100);
+        if let Some(token) = next {
+            req = req.next_token(token);
+        }
+        let resp = req.send().await.map_err(|e| format_sdk_err(&e))?;
+        for v in resp.versions() {
+            if let Some(vid) = v.version_id() {
+                out.push(SecretVersion {
+                    version_id: vid.to_string(),
+                    version_stages: v.version_stages().iter().map(|s| s.to_string()).collect(),
+                    created_date: v.created_date().map(|d| d.secs()),
+                    last_accessed_date: v.last_accessed_date().map(|d| d.secs()),
+                });
+            }
+        }
+        next = resp.next_token().map(|s| s.to_string());
+        if next.is_none() {
+            break;
+        }
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub async fn fetch_secret_version(
+    profile: Option<String>,
+    secret_id: String,
+    version_id: String,
+) -> Result<SecretContent, String> {
+    let client = sm_client(profile).await;
+    let resp = client
+        .get_secret_value()
+        .secret_id(&secret_id)
+        .version_id(&version_id)
+        .send()
+        .await
+        .map_err(|e| format_get_error(&e, &secret_id))?;
+    if let Some(s) = resp.secret_string {
+        return Ok(SecretContent {
+            string: Some(s),
+            binary_base64: None,
+        });
+    }
+    if let Some(b) = resp.secret_binary {
+        return Ok(SecretContent {
+            string: None,
+            binary_base64: Some(base64::engine::general_purpose::STANDARD.encode(b.as_ref())),
+        });
+    }
+    Err("Secret has neither string nor binary".to_string())
+}
+
+fn format_sdk_err<E>(e: &SdkError<E, HttpResponse>) -> String
+where
+    E: ProvideErrorMetadata + std::fmt::Debug,
+{
+    match e {
+        SdkError::ServiceError(se) => {
+            let err = se.err();
+            let code = err.code().unwrap_or("");
+            let message = err.message().unwrap_or("Unknown service error");
+            format!("{code}: {message}")
+        }
+        SdkError::DispatchFailure(df) => format!("Network/dispatch error: {df:?}"),
+        SdkError::TimeoutError(te) => format!("Request timed out: {te:?}"),
+        other => format!("SDK error: {other:?}"),
+    }
+}
+
 // ===== Friendly error formatters (user-facing) =====
 fn format_get_error(
     e: &SdkError<

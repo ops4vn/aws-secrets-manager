@@ -8,7 +8,14 @@ import {
   RotateCcw,
   Trash2,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useProfileStore } from "../store/useProfileStore";
 import { useSecretsListStore } from "../store/useSecretsListStore";
 import { useEditorStore } from "../store/useEditorStore";
@@ -16,63 +23,9 @@ import { api } from "../services/tauriApi";
 import { useLogsStore } from "../store/useLogsStore";
 import { Input } from "./components/Input";
 import { Button } from "./components/Button";
-
-// Helper function to get environment style class
-function getEnvStyleClass(text: string): string | null {
-  const lowerText = text.toLowerCase();
-  if (lowerText === 'uat' || lowerText === 'dev') {
-    return 'font-bold text-warning';
-  } else if (lowerText === 'staging' || lowerText === 'stg') {
-    return 'font-bold text-info';
-  } else if (lowerText === 'prod') {
-    return 'font-bold text-error';
-  }
-  return null;
-}
-
-// Helper function to highlight environment keywords and search query in secret names
-function HighlightedSecretName({ name, searchQuery }: { name: string; searchQuery: string }) {
-  // Combined regex: environment keywords + search query (if provided)
-  const envKeywords = 'dev|uat|staging|stg|prod';
-  const escapedQuery = searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  
-  // Build regex pattern: env keywords OR search query (if not empty)
-  const pattern = escapedQuery 
-    ? `(${envKeywords}|${escapedQuery})`
-    : `(${envKeywords})`;
-  const regex = new RegExp(pattern, 'gi');
-  
-  const parts = name.split(regex);
-  
-  return (
-    <>
-      {parts.map((part, index) => {
-        if (!part) return null;
-        
-        // Check if it's an environment keyword
-        const envClass = getEnvStyleClass(part);
-        if (envClass) {
-          return (
-            <span key={index} className={envClass}>
-              {part}
-            </span>
-          );
-        }
-        
-        // Check if it matches search query
-        if (escapedQuery && part.toLowerCase() === searchQuery.trim().toLowerCase()) {
-          return (
-            <span key={index} className="text-primary font-semibold underline underline-offset-2">
-              {part}
-            </span>
-          );
-        }
-        
-        return <span key={index}>{part}</span>;
-      })}
-    </>
-  );
-}
+import { filterSecrets } from "./utils/secretSearch";
+import { SecretDetailsPanel } from "./SecretDetailsPanel";
+import { HighlightedSecretName } from "./components/HighlightedSecretName";
 
 export function RightPanel() {
   const { selectedProfile, defaultProfile } = useProfileStore();
@@ -97,7 +50,11 @@ export function RightPanel() {
   const [matchWord, setMatchWord] = useState<boolean>(false);
   const [caseSensitive, setCaseSensitive] = useState<boolean>(false);
   const trimmed = useMemo(() => localQuery.trim(), [localQuery]);
+  // Filtering/rendering runs against the deferred query so typing stays smooth.
+  const deferredTrimmed = useDeferredValue(trimmed);
   const profile = selectedProfile ?? defaultProfile;
+
+  const MAX_RESULTS = 200;
 
   useEffect(() => {
     setLocalQuery(searchQuery);
@@ -114,50 +71,19 @@ export function RightPanel() {
     }
   }, [profile, showDeleted, listDeletedSecrets]);
 
-  const results = useMemo(() => {
-    if (!trimmed) return [];
-    
-    return allNames.filter((name) => {
-      try {
-        if (useRegex) {
-          // Regex mode
-          const flags = caseSensitive ? 'g' : 'gi';
-          const regex = new RegExp(trimmed, flags);
-          return regex.test(name);
-        } else {
-          // Normal search
-          const searchName = caseSensitive ? name : name.toLowerCase();
-          const searchTerm = caseSensitive ? trimmed : trimmed.toLowerCase();
-          
-          if (matchWord) {
-            // Exact match on path segments (split by /)
-            // This treats the whole segment as a unit, so "hdb-notification-service" 
-            // won't match "hdb-notification-service-firebase"
-            const segments = name.split('/');
-            const searchSegments = trimmed.split('/');
-            
-            // Check if search term matches any segment exactly, or matches the full path
-            if (caseSensitive) {
-              return segments.some(seg => seg === trimmed) || 
-                     name === trimmed ||
-                     segments.join('/').includes(searchSegments.join('/')) && 
-                     segments.some(seg => searchSegments.includes(seg));
-            } else {
-              const lowerSegments = segments.map(s => s.toLowerCase());
-              const lowerSearchTerm = trimmed.toLowerCase();
-              return lowerSegments.some(seg => seg === lowerSearchTerm) || 
-                     name.toLowerCase() === lowerSearchTerm;
-            }
-          }
-          
-          return searchName.includes(searchTerm);
-        }
-      } catch {
-        // Invalid regex, fall back to simple includes
-        return name.toLowerCase().includes(trimmed.toLowerCase());
-      }
-    });
-  }, [trimmed, allNames, useRegex, matchWord, caseSensitive]);
+  const results = useMemo(
+    () =>
+      filterSecrets(allNames, deferredTrimmed, {
+        useRegex,
+        matchWord,
+        caseSensitive,
+      }),
+    [deferredTrimmed, allNames, useRegex, matchWord, caseSensitive]
+  );
+  const shownResults = useMemo(
+    () => results.slice(0, MAX_RESULTS),
+    [results]
+  );
 
   const handleSetSearchShow = useCallback(() => {
     setShowSearch((s) => {
@@ -211,6 +137,7 @@ export function RightPanel() {
 
   return (
     <div className="flex flex-col" ref={panelRef}>
+      <SecretDetailsPanel />
       <div className="sticky top-0 z-20 bg-base-100/95 supports-backdrop-filter:bg-base-100/80 backdrop-blur border-base-300 py-2">
         <div className="flex items-center justify-between">
           <h2 className="text-primary text-md font-semibold">Secrets</h2>
@@ -344,7 +271,7 @@ export function RightPanel() {
             result(s)
           </div>
           <div>
-            {results.map((name) => (
+            {shownResults.map((name) => (
               <div
                 key={name}
                 className="flex items-center gap-2 py-2 px-2 border-b border-base-200 hover:bg-base-200/50 rounded"
@@ -355,7 +282,7 @@ export function RightPanel() {
                   onClick={() => handleSelect(name)}
                 >
                   <span className="text-sm text-base-content/80">
-                    <HighlightedSecretName name={name} searchQuery={trimmed} />
+                    <HighlightedSecretName name={name} searchQuery={deferredTrimmed} />
                   </span>
                 </button>
                 {secretMetadata[name] === true && (
@@ -373,6 +300,11 @@ export function RightPanel() {
                 </Button>
               </div>
             ))}
+            {results.length > MAX_RESULTS && (
+              <div className="text-xs text-base-content/50 px-2 py-2 text-center">
+                Showing first {MAX_RESULTS} of {results.length} — refine your search
+              </div>
+            )}
           </div>
         </div>
       ) : (

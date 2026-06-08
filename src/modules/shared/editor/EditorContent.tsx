@@ -11,6 +11,7 @@ type Props = {
   isDarkTheme: boolean;
   wrap: boolean;
   isDecoded: boolean;
+  masked?: boolean;
   onChange: (value: string) => void;
   editorViewRef: React.RefObject<EditorView | null>;
 };
@@ -22,6 +23,7 @@ export function EditorContent({
   isDarkTheme,
   wrap,
   isDecoded,
+  masked = false,
   onChange,
   editorViewRef,
 }: Props) {
@@ -30,6 +32,7 @@ export function EditorContent({
       <div className="border border-base-300 rounded-md overflow-hidden flex-1 min-h-0">
         <CodeMirror
           value={content}
+          className="h-full"
           height="100%"
           theme={isDarkTheme ? oneDark : undefined}
           extensions={
@@ -56,6 +59,7 @@ export function EditorContent({
         wrap={wrap}
         isBinary={isBinary}
         isDecoded={isDecoded}
+        masked={masked}
       />
     </div>
   );

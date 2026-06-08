@@ -2,6 +2,30 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type SecretContent = { string: string | null; binary_base64: string | null };
 export type SecretMetadata = { name: string; is_binary: boolean };
+export type SecretTag = { key: string; value: string };
+export type SecretDescription = {
+  arn: string | null;
+  name: string | null;
+  description: string | null;
+  // Dates are epoch seconds (multiply by 1000 for Date()).
+  created_date: number | null;
+  last_changed_date: number | null;
+  last_accessed_date: number | null;
+  last_rotated_date: number | null;
+  next_rotation_date: number | null;
+  deleted_date: number | null;
+  rotation_enabled: boolean | null;
+  rotation_lambda_arn: string | null;
+  rotation_automatically_after_days: number | null;
+  primary_region: string | null;
+  tags: SecretTag[];
+};
+export type SecretVersion = {
+  version_id: string;
+  version_stages: string[];
+  created_date: number | null;
+  last_accessed_date: number | null;
+};
 
 export const api = {
   loadProfiles: () => invoke<string[]>("load_profiles"),
@@ -41,6 +65,16 @@ export const api = {
     profile: string | null | undefined,
     secretId: string,
   ) => invoke<string>("restore_secret", { profile: profile ?? null, secretId }),
+  describeSecret: (profile: string | null | undefined, secretId: string) =>
+    invoke<SecretDescription>("describe_secret", { profile: profile ?? null, secretId }),
+  tagSecret: (profile: string | null | undefined, secretId: string, tags: SecretTag[]) =>
+    invoke<string>("tag_secret", { profile: profile ?? null, secretId, tags }),
+  untagSecret: (profile: string | null | undefined, secretId: string, keys: string[]) =>
+    invoke<string>("untag_secret", { profile: profile ?? null, secretId, keys }),
+  listSecretVersions: (profile: string | null | undefined, secretId: string) =>
+    invoke<SecretVersion[]>("list_secret_versions", { profile: profile ?? null, secretId }),
+  fetchSecretVersion: (profile: string | null | undefined, secretId: string, versionId: string) =>
+    invoke<SecretContent>("fetch_secret_version", { profile: profile ?? null, secretId, versionId }),
   checkSso: (profile: string) => invoke<boolean>("check_sso", { profile }),
   triggerSsoLogin: (profile: string) => invoke<boolean>("trigger_sso_login", { profile }),
   loadTheme: () => invoke<string | null>("load_theme"),

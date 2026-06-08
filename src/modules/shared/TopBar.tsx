@@ -1,24 +1,20 @@
-import { LockOpen, Plus, Upload } from "lucide-react";
-// import { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
-import { useProfileStore } from "../store/useProfileStore";
+import { Plus, Upload, Search } from "lucide-react";
 import { useEditorStore } from "../store/useEditorStore";
+import { useUiStore } from "../store/useUiStore";
 import { useRef } from "react";
-import { Input } from "./components/Input";
 import { Button } from "./components/Button";
+import { GlobalSearchModal } from "./GlobalSearchModal";
 
 export function TopBar() {
-  const { selectedProfile, defaultProfile } = useProfileStore();
   const {
-    secretId,
     setSecretId,
     isEditing,
-    isCreatingNew,
-    fetchSecretById,
     startCreateNew: startCreateNewEditor,
     setEditorContent,
     setIsBinary,
     setImportedBinary,
   } = useEditorStore();
+  const setGlobalSearchOpen = useUiStore((s) => s.setGlobalSearchOpen);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -113,49 +109,21 @@ export function TopBar() {
   };
   return (
     <div className="navbar bg-base-100 border-b border-base-300 px-4 gap-4">
-      <div className="flex flex-1 items-center gap-3">
-        <span className="whitespace-nowrap">ID:</span>
-        <Input
-          size="sm"
-          value={secretId}
-          onChange={(e) => setSecretId(e.target.value)}
-          placeholder="my/app/secret"
-          className="w-full max-w-xl"
-        />
+      <div className="flex-1" />
 
-        {isCreatingNew && (
-          <div
-            className="btn btn-success btn-xs normal-case ml-2"
-            title="Create mode"
-          >
-            <span className="w-2 h-2 rounded-full bg-black mr-2"></span>
-            Create mode
-          </div>
-        )}
-        {!isCreatingNew && isEditing && (
-          <div
-            className="btn btn-warning btn-xs normal-case ml-2"
-            title="Edit mode"
-          >
-            <span className="w-2 h-2 rounded-full bg-error/80 mr-2"></span>
-            Edit mode
-          </div>
-        )}
+      <div className="flex-1 flex justify-center">
+        <button
+          className="btn btn-sm btn-ghost border border-base-300 normal-case font-normal text-base-content/60 w-full max-w-md justify-start gap-2"
+          onClick={() => setGlobalSearchOpen(true)}
+          title="Search secrets (Ctrl/⌘ + F)"
+        >
+          <Search className="h-4 w-4" />
+          <span className="flex-1 text-left">Search secrets...</span>
+          <kbd className="kbd kbd-sm">⌘F</kbd>
+        </button>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={isEditing}
-          title={isEditing ? "Cancel edit first to prevent data loss" : ""}
-          onClick={() => {
-            const profile = selectedProfile ?? defaultProfile;
-            fetchSecretById(secretId, profile);
-          }}
-        >
-          <LockOpen className="h-4 w-4 mr-1" /> Get
-        </Button>
+      <div className="flex-1 flex items-center justify-end gap-2">
         <Button
           size="sm"
           variant="ghost"
@@ -174,8 +142,8 @@ export function TopBar() {
         >
           <Upload className="h-4 w-4 mr-1" /> Import Binary Secret
         </Button>
-        {/* <KeyboardShortcutsHelp /> */}
       </div>
+
       <input
         ref={fileInputRef}
         type="file"
@@ -184,6 +152,7 @@ export function TopBar() {
         onChange={handleFileSelect}
       />
 
+      <GlobalSearchModal />
     </div>
   );
 }

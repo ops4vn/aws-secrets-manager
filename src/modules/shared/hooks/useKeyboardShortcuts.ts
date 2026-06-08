@@ -15,7 +15,8 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[]) {
 
     for (const shortcut of shortcuts) {
       const keyMatches = pressedKey === shortcut.key.toLowerCase();
-      const ctrlMatches = !!shortcut.ctrlKey === event.ctrlKey;
+      // Treat ctrlKey as a cross-platform "mod" so Cmd works on macOS.
+      const ctrlMatches = !!shortcut.ctrlKey === (event.ctrlKey || event.metaKey);
       const shiftMatches = !!shortcut.shiftKey === event.shiftKey;
       const altMatches = !!shortcut.altKey === event.altKey;
 

@@ -37,6 +37,12 @@ pub fn run() {
             commands::aws::list_deleted_secrets,
             commands::aws::restore_secret,
             commands::aws::check_sso,
+            // describe / tags / versions
+            commands::aws::describe_secret,
+            commands::aws::tag_secret,
+            commands::aws::untag_secret,
+            commands::aws::list_secret_versions,
+            commands::aws::fetch_secret_version,
             // cache metadata
             commands::config::load_cached_secret_metadata,
             commands::config::save_cached_secret_metadata,

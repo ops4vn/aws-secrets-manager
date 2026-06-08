@@ -1,12 +1,18 @@
 import { Outlet } from "react-router-dom";
-import { Menu } from "lucide-react";
+import { Menu, HelpCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useUiStore } from "../store/useUiStore";
 import { platform } from "@tauri-apps/plugin-os";
 import { ThemeToggle } from "../shared/components/ThemeToggle";
+import { useAppShortcuts } from "../shared/hooks/useAppShortcuts";
+import { KeyboardShortcutsHelp } from "../shared/KeyboardShortcutsHelp";
 
 export function MainLayout() {
   const [isMac, setIsMac] = useState(false);
+  const helpOpen = useUiStore((s) => s.helpOpen);
+  const setHelpOpen = useUiStore((s) => s.setHelpOpen);
+
+  useAppShortcuts();
 
   useEffect(() => {
     const checkPlatform = async () => {
@@ -31,7 +37,15 @@ export function MainLayout() {
             <span className="text-base-content">Manager</span>
           </div>
         </div>
-        <div className="flex-none gap-1">
+        <div className="flex-none gap-1 flex items-center">
+          <button
+            className="btn btn-ghost btn-sm btn-square h-8 w-8 min-h-0 p-0"
+            onClick={() => setHelpOpen(true)}
+            title="Keyboard shortcuts (Ctrl/⌘ + /)"
+            aria-label="Keyboard shortcuts"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
           <ThemeToggle />
         </div>
       </div>
@@ -39,6 +53,8 @@ export function MainLayout() {
       <div className="flex-1 min-h-0">
         <Outlet />
       </div>
+
+      <KeyboardShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

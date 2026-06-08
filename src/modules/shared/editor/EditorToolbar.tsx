@@ -13,8 +13,13 @@ import {
   AlertCircle,
   Edit3,
   Trash2,
+  Columns2,
+  Rows2,
+  Braces,
+  Table,
 } from "lucide-react";
 import { Button } from "../components/Button";
+import { extractJsonPaths } from "../utils/jsonPaths";
 
 type Props = {
   label?: string;
@@ -48,6 +53,14 @@ type Props = {
   onCopyTemplate?: () => void;
   copyTemplateDisabled?: boolean;
   copyTemplateDisabledReason?: string;
+  diffMode?: "off" | "split" | "unified";
+  onToggleDiffMode?: (mode: "split" | "unified") => void;
+  diffDisabled?: boolean;
+  masked?: boolean;
+  onToggleMask?: () => void;
+  viewMode?: "json" | "table";
+  onSetViewMode?: (mode: "json" | "table") => void;
+  tableDisabled?: boolean;
 };
 
 export function EditorToolbar({
@@ -81,6 +94,14 @@ export function EditorToolbar({
   onCopyTemplate,
   copyTemplateDisabled = false,
   copyTemplateDisabledReason = "",
+  diffMode = "off",
+  onToggleDiffMode,
+  diffDisabled = false,
+  masked = false,
+  onToggleMask,
+  viewMode = "json",
+  onSetViewMode,
+  tableDisabled = false,
 }: Props) {
   const [copyCopied, setCopyCopied] = useState(false);
   const [copyByKeyCopied, setCopyByKeyCopied] = useState(false);
@@ -203,6 +224,50 @@ export function EditorToolbar({
             <Eye className="h-3.5 w-3.5 mr-1" />
           )}
           {isDecoded ? "Encoded" : "Decoded"}
+        </Button>
+      )}
+
+      {!isBinary && hasContent && onSetViewMode && (
+        <div className="join">
+          <Button
+            size="xs"
+            variant={viewMode === "json" ? "info" : "ghost"}
+            className="join-item"
+            title="JSON view"
+            onClick={() => onSetViewMode("json")}
+          >
+            <Braces className="h-3.5 w-3.5 mr-1" /> JSON
+          </Button>
+          <Button
+            size="xs"
+            variant={viewMode === "table" ? "info" : "ghost"}
+            className="join-item"
+            disabled={tableDisabled}
+            title={
+              tableDisabled
+                ? "Table view needs a JSON object"
+                : "Table view"
+            }
+            onClick={() => onSetViewMode("table")}
+          >
+            <Table className="h-3.5 w-3.5 mr-1" /> Table
+          </Button>
+        </div>
+      )}
+
+      {!isEditing && !isBinary && hasContent && onToggleMask && (
+        <Button
+          size="xs"
+          variant={masked ? "ghost" : "info"}
+          onClick={onToggleMask}
+          title={masked ? "Reveal values" : "Hide values"}
+        >
+          {masked ? (
+            <Eye className="h-3.5 w-3.5 mr-1" />
+          ) : (
+            <EyeOff className="h-3.5 w-3.5 mr-1" />
+          )}
+          {masked ? "Reveal" : "Hide"}
         </Button>
       )}
 
@@ -333,35 +398,41 @@ export function EditorToolbar({
               </Button>
             </>
           )}
+
+          {isEditing && !isBinary && onToggleDiffMode && (
+            <>
+              <Button
+                size="xs"
+                variant={diffMode === "split" ? "info" : "ghost"}
+                disabled={diffDisabled && diffMode === "off"}
+                title={
+                  diffDisabled && diffMode === "off"
+                    ? "No changes to compare"
+                    : "Side-by-side diff"
+                }
+                onClick={() => onToggleDiffMode("split")}
+              >
+                <Columns2 className="h-3.5 w-3.5 mr-1" /> Side by side
+              </Button>
+              <Button
+                size="xs"
+                variant={diffMode === "unified" ? "info" : "ghost"}
+                disabled={diffDisabled && diffMode === "off"}
+                title={
+                  diffDisabled && diffMode === "off"
+                    ? "No changes to compare"
+                    : "Unified inline diff"
+                }
+                onClick={() => onToggleDiffMode("unified")}
+              >
+                <Rows2 className="h-3.5 w-3.5 mr-1" /> Inline
+              </Button>
+            </>
+          )}
         </div>
       )}
     </div>
   );
-}
-
-type JsonPathItem = { path: string; value: string };
-function extractJsonPaths(obj: any, prefix: string = ""): JsonPathItem[] {
-  const items: JsonPathItem[] = [];
-  if (obj !== null && typeof obj === "object") {
-    if (Array.isArray(obj)) {
-      obj.forEach((v, i) => {
-        items.push(...extractJsonPaths(v, `${prefix}[${i}]`));
-      });
-    } else {
-      Object.keys(obj).forEach((k) => {
-        const p = prefix ? `${prefix}.${k}` : k;
-        const v = (obj as any)[k];
-        if (v !== null && typeof v === "object") {
-          items.push(...extractJsonPaths(v, p));
-        } else {
-          items.push({ path: p, value: String(v) });
-        }
-      });
-    }
-  } else {
-    items.push({ path: prefix || "$", value: String(obj) });
-  }
-  return items;
 }
 
 export default EditorToolbar;

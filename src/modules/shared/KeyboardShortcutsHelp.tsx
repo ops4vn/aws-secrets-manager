@@ -1,104 +1,77 @@
-import { useState } from "react";
-import { HelpCircle, X } from "lucide-react";
+import { Modal } from "./components/Modal";
+import { Button } from "./components/Button";
 
-interface KeyboardShortcut {
-  key: string;
-  ctrlKey?: boolean;
-  shiftKey?: boolean;
-  altKey?: boolean;
-  description: string;
-}
+type ShortcutRow = { keys: string[]; description: string };
 
-const shortcuts: KeyboardShortcut[] = [
-  // Editor shortcuts
-  { key: "s", ctrlKey: true, description: "Save changes" },
-  { key: "z", ctrlKey: true, description: "Undo" },
-  { key: "y", ctrlKey: true, description: "Redo" },
-  {
-    key: "z",
-    ctrlKey: true,
-    shiftKey: true,
-    description: "Redo (alternative)",
-  },
-  { key: "Escape", description: "Cancel editing" },
+// "Mod" renders as ⌘ on macOS, Ctrl elsewhere.
+const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+  ? "⌘"
+  : "Ctrl";
 
-  // Main actions
-  { key: "n", ctrlKey: true, description: "Create new secret" },
-  { key: "e", ctrlKey: true, description: "Edit current secret" },
-  { key: "g", ctrlKey: true, description: "Get secret" },
-  { key: "r", ctrlKey: true, description: "Reload secrets" },
-  { key: "f", ctrlKey: true, description: "Focus search" },
+const NAVIGATION: ShortcutRow[] = [
+  { keys: [MOD, "F"], description: "Open search" },
+  { keys: [MOD, "N"], description: "Create new secret" },
+  { keys: [MOD, "E"], description: "Edit current secret" },
+  { keys: [MOD, "R"], description: "Reload secrets" },
+  { keys: [MOD, "/"], description: "Show this help" },
 ];
 
-export function KeyboardShortcutsHelp() {
-  const [isOpen, setIsOpen] = useState(false);
+const EDITOR: ShortcutRow[] = [
+  { keys: [MOD, "S"], description: "Save changes" },
+  { keys: [MOD, "Z"], description: "Undo" },
+  { keys: [MOD, "Y"], description: "Redo" },
+  { keys: ["Esc"], description: "Cancel editing / close dialog" },
+];
 
-  const formatKey = (shortcut: KeyboardShortcut) => {
-    const parts: string[] = [];
-    if (shortcut.ctrlKey) parts.push("Ctrl");
-    if (shortcut.shiftKey) parts.push("Shift");
-    if (shortcut.altKey) parts.push("Alt");
-    parts.push(shortcut.key);
-    return parts.join(" + ");
-  };
-
-  if (!isOpen) {
-    return (
-      <button
-        className="btn btn-ghost btn-sm"
-        onClick={() => setIsOpen(true)}
-        title="Show keyboard shortcuts"
-      >
-        <HelpCircle className="h-4 w-4" />
-      </button>
-    );
-  }
-
+function ShortcutList({ rows }: { rows: ShortcutRow[] }) {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-base-100 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Keyboard Shortcuts</h2>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setIsOpen(false)}
-          >
-            <X className="h-4 w-4" />
-          </button>
+    <div className="space-y-2">
+      {rows.map((row, i) => (
+        <div key={i} className="flex justify-between items-center">
+          <span className="text-sm">{row.description}</span>
+          <span className="flex gap-1">
+            {row.keys.map((k, j) => (
+              <kbd key={j} className="kbd kbd-sm">
+                {k}
+              </kbd>
+            ))}
+          </span>
         </div>
-
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Editor</h3>
-            <div className="space-y-2">
-              {shortcuts.slice(0, 5).map((shortcut, index) => (
-                <div key={index} className="flex justify-between items-center">
-                  <span className="text-sm">{shortcut.description}</span>
-                  <kbd className="kbd kbd-sm">{formatKey(shortcut)}</kbd>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Main Actions</h3>
-            <div className="space-y-2">
-              {shortcuts.slice(5).map((shortcut, index) => (
-                <div key={index} className="flex justify-between items-center">
-                  <span className="text-sm">{shortcut.description}</span>
-                  <kbd className="kbd kbd-sm">{formatKey(shortcut)}</kbd>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 pt-4 border-t border-base-300">
-          <p className="text-sm text-base-content/70">
-            Press <kbd className="kbd kbd-xs">Esc</kbd> to close this dialog
-          </p>
-        </div>
-      </div>
+      ))}
     </div>
   );
 }
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+};
+
+export function KeyboardShortcutsHelp({ open, onClose }: Props) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Keyboard Shortcuts"
+      size="lg"
+      actions={
+        <Button variant="ghost" onClick={onClose}>
+          Close
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-base font-semibold mb-2">Navigation</h3>
+          <ShortcutList rows={NAVIGATION} />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold mb-2">Editor</h3>
+          <ShortcutList rows={EDITOR} />
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+export default KeyboardShortcutsHelp;
