@@ -102,12 +102,12 @@ export function EditorTabs({
 
   return (
     <>
-      <div ref={tabsContainerRef} className="flex items-center gap-1 mb-2 overflow-x-auto border-b border-base-300 pb-1">
+      <div ref={tabsContainerRef} className="flex items-center gap-1 mb-2 overflow-x-auto border-b border-base-300 pb-1 min-w-0">
         {tabs.map((tab) => (
           <div
             key={tab.id}
             data-tab-id={tab.id}
-            className={`flex items-center gap-1 px-3 py-1 rounded-t cursor-pointer border-b-2 transition-colors ${
+            className={`flex items-center gap-1 px-3 py-1 rounded-t cursor-pointer border-b-2 transition-colors shrink-0 ${
               tab.id === activeTabId
                 ? "bg-base-200 border-primary text-primary"
                 : "hover:bg-base-100 border-transparent"
@@ -124,7 +124,7 @@ export function EditorTabs({
             }}
           >
             <span
-              className={`text-sm whitespace-nowrap max-w-[200px] truncate select-none ${
+              className={`text-sm whitespace-nowrap max-w-[40vw] sm:max-w-[200px] truncate select-none ${
                 isProdSecret(tab.secretId) ? "text-error font-bold" : ""
               }`}
             >

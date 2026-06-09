@@ -388,21 +388,24 @@ export function EditorPanel() {
         <>
           {/* Sticky secret-ID bar: editable input in create/clone mode, plain
               text otherwise. Replaces the old header ID input. */}
-          <div className="sticky top-0 z-10 bg-base-100 flex items-center gap-2 rounded-md p-2 mb-2">
+          <div className="sticky top-0 z-10 bg-base-100 flex flex-wrap items-center gap-2 rounded-md p-2 mb-2 min-w-0">
             {isCreatingNew ? (
               <Input
                 size="sm"
                 value={secretId}
                 onChange={(e) => setSecretId(e.target.value)}
                 placeholder="my/app/secret"
-                className="w-full max-w-xl"
+                className="w-full min-w-0 flex-1"
               />
             ) : (
-              <div className="flex items-center gap-3 rounded-2xl">
-                <span className="text-xs opacity-60 whitespace-nowrap">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="text-xs opacity-60 whitespace-nowrap shrink-0">
                   ID:
                 </span>
-                <span className="text-sm font-mono truncate" title={secretId}>
+                <span
+                  className="text-sm font-mono truncate min-w-0 flex-1"
+                  title={secretId}
+                >
                   {secretId}
                 </span>
                 {secretId && (
@@ -410,6 +413,7 @@ export function EditorPanel() {
                     size="xs"
                     variant="ghost"
                     square
+                    className="shrink-0"
                     title="Copy secret ID"
                     onClick={() => navigator.clipboard.writeText(secretId)}
                   >
@@ -419,11 +423,11 @@ export function EditorPanel() {
               </div>
             )}
             {isCreatingNew ? (
-              <span className="badge badge-success badge-sm gap-1 whitespace-nowrap">
+              <span className="badge badge-success badge-sm gap-1 whitespace-nowrap shrink-0">
                 <span className="w-2 h-2 rounded-full bg-black" /> Create mode
               </span>
             ) : isEditing ? (
-              <span className="badge badge-warning badge-sm gap-1 whitespace-nowrap">
+              <span className="badge badge-warning badge-sm gap-1 whitespace-nowrap shrink-0">
                 <span className="w-2 h-2 rounded-full bg-error/80" /> Edit mode
               </span>
             ) : null}

@@ -1,6 +1,6 @@
 [package]
 name = "secretsmanager"
-version = "0.0.20"
+version = "0.0.21"
 description = "AWS Secret Manager"
 authors = ["Le Dang Dung <ledung.itsme@gmail.com>"]
 edition = "2021"
