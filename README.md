@@ -6,9 +6,9 @@
 
 **Phiên bản mới nhất: v0.0.21**
 
-- **macOS (Apple Silicon)**: [Tải Secrets Manager 0.0.21 (aarch64)](https://secrets-manager.dung.io.vn/releases/darwin/aarch64/0.0.21/Secrets%20Manager.app.tar.gz)
-- **Windows (x86_64)**: [Tải Secrets Manager 0.0.21 (x64)](https://secrets-manager.dung.io.vn/releases/windows/x86_64/0.0.21/Secrets%20Manager_0.0.21_x64_en-US.msi)
-- **Linux (x86_64)**: [Tải Secrets Manager 0.0.21 (AppImage)](https://secrets-manager.dung.io.vn/releases/linux/x86_64/0.0.21/secrets-manager_0.0.21_amd64.AppImage)
+- **macOS (Apple Silicon)**: [Tải Secrets Manager 0.0.21 (aarch64)](https://secrets-manager.ledangdung.com/releases/darwin/aarch64/0.0.21/Secrets%20Manager.app.tar.gz)
+- **Windows (x86_64)**: [Tải Secrets Manager 0.0.21 (x64)](https://secrets-manager.ledangdung.com/releases/windows/x86_64/0.0.21/Secrets%20Manager_0.0.21_x64_en-US.msi)
+- **Linux (x86_64)**: [Tải Secrets Manager 0.0.21 (AppImage)](https://secrets-manager.ledangdung.com/releases/linux/x86_64/0.0.21/secrets-manager_0.0.21_amd64.AppImage)
 
 > **Lưu ý**: Ứng dụng hỗ trợ tự động cập nhật sau khi cài đặt. Chỉ cần tải thủ công khi cài lần đầu hoặc downgrade phiên bản.
 

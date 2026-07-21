@@ -64,21 +64,21 @@ function syncReadmeVersion(version) {
   }
 
   // Update macOS download link (format: Tải Secrets Manager 0.0.17 (aarch64))
-  const macosRegex = /(- \*\*macOS \(Apple Silicon\)\*\*: \[Tải Secrets Manager )[\d.]+( \(aarch64\)\]\(https:\/\/secrets-manager\.dung\.io\.vn\/releases\/darwin\/aarch64\/)[\d.]+(\/.+?\))/g;
+  const macosRegex = /(- \*\*macOS \(Apple Silicon\)\*\*: \[Tải Secrets Manager )[\d.]+( \(aarch64\)\]\(https:\/\/secrets-manager\.ledangdung\.com\/releases\/darwin\/aarch64\/)[\d.]+(\/.+?\))/g;
   if (macosRegex.test(content)) {
     content = content.replace(macosRegex, `$1${version}$2${version}$3`);
     changed = true;
   }
 
   // Update Windows download link (format: Tải Secrets Manager 0.0.17 (x64))
-  const windowsRegex = /(- \*\*Windows \(x86_64\)\*\*: \[Tải Secrets Manager )[\d.]+( \(x64\)\]\(https:\/\/secrets-manager\.dung\.io\.vn\/releases\/windows\/x86_64\/)[\d.]+(\/.+?_)[\d.]+(_x64_en-US\.msi\))/g;
+  const windowsRegex = /(- \*\*Windows \(x86_64\)\*\*: \[Tải Secrets Manager )[\d.]+( \(x64\)\]\(https:\/\/secrets-manager\.ledangdung\.com\/releases\/windows\/x86_64\/)[\d.]+(\/.+?_)[\d.]+(_x64_en-US\.msi\))/g;
   if (windowsRegex.test(content)) {
     content = content.replace(windowsRegex, `$1${version}$2${version}$3${version}$4`);
     changed = true;
   }
 
   // Update Linux download link (format: Tải Secrets Manager 0.0.17 (AppImage))
-  const linuxRegex = /(- \*\*Linux \(x86_64\)\*\*: \[Tải Secrets Manager )[\d.]+( \(AppImage\)\]\(https:\/\/secrets-manager\.dung\.io\.vn\/releases\/linux\/x86_64\/)[\d.]+(\/.+?_)[\d.]+(_amd64\.AppImage\))/g;
+  const linuxRegex = /(- \*\*Linux \(x86_64\)\*\*: \[Tải Secrets Manager )[\d.]+( \(AppImage\)\]\(https:\/\/secrets-manager\.ledangdung\.com\/releases\/linux\/x86_64\/)[\d.]+(\/.+?_)[\d.]+(_amd64\.AppImage\))/g;
   if (linuxRegex.test(content)) {
     content = content.replace(linuxRegex, `$1${version}$2${version}$3${version}$4`);
     changed = true;
