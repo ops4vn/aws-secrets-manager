@@ -18,7 +18,10 @@
     "bump:minor": "bun scripts/sync-version.mjs minor",
     "bump:major": "bun scripts/sync-version.mjs major",
     "bump:version": "bun scripts/sync-version.mjs",
-    "prepare": "husky"
+    "prepare": "husky",
+    "sync:domain": "bun scripts/sync-domain.mjs",
+    "sync:domain:set": "bun scripts/sync-domain.mjs set",
+    "sync:domain:check": "bun scripts/sync-domain.mjs --check"
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",
